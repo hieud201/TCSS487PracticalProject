@@ -3,6 +3,7 @@
  * Author: Spencer Little
  * Date: 01/22/2020
  */
+
 import java.util.Arrays;
 
 /**
@@ -42,68 +43,72 @@ public class Keccak {
             15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6,  1
     };
 
-    private enum ENCODE {Left, Right}
 
     /**
      * The Keccak Message Authentication with extensible output, ref NIST SP 800-185 sec 4.3.1
-     * @param key the key
-     * @param in the input bytes
-     * @param bitLen the desired bit length
-     * @param custStr the customization string
+     * @Author Tin Phu
+     * @param k the key
+     * @param x the input bytes
+     * @param l the desired bit length
+     * @param s the customization string
      * @return the message authentication code derived from the provided input
      */
-    public static byte[] KMACXOF256(byte[] key, byte[] in, int bitLen, String custStr) {
-        byte[] newIn = mergeByteArrays(bytepad(encodeString(key), 136), in);
-        newIn = mergeByteArrays(newIn, lrEncode(0, ENCODE.Right));
-        return cSHAKE256(newIn, bitLen,  "KMAC", custStr);
+    public static byte[] KMACXOF256(byte[] k, byte[] x, int l, String s) {
+        byte[] newX = concatByteArrays(bytepad(encode_string(k), 136), x);
+        //in case of KMACXOF256, right_encode(0) is always used.
+        byte[] right_encodeZERO = {
+                 (byte) 0x00, (byte) 0x01
+        };
+        newX = concatByteArrays(newX, right_encodeZERO);
+        return cSHAKE256(newX, l,  "KMAC", s);
     }
+    private static String byteArrayToHexString(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02X ", b));
+
+        }
+        return sb.toString();
+    }
+
+
+
+
+
+
+
 
     /**
      * cSHAKE func ref sec 3.3 NIST SP 800-185
-     * @param in the byte array to hash
-     * @param bitLen the bit length of the desired output
-     * @param funcName the name of the function to use
-     * @param custStr the customization string
-     * @return the message digest based on Keccak[512]
+     * skip SHAKE256 because in case of KMACXOF256 n is always "KMAC"
+     * @author Tin Phu
+     * @param x the byte array to hash
+     * @param l the bit length for output
+     * @param n the name of the function
+     * @param s the customization string
+     * @return  Keccak[512] digest
      */
-    public static byte[] cSHAKE256(byte[] in, int bitLen, String funcName, String custStr) {
-        if (funcName.equals("") && custStr.equals("")) return SHAKE256(in, bitLen);
-
-        byte[] fin = mergeByteArrays(encodeString(funcName.getBytes()), encodeString(custStr.getBytes()));
-        fin = mergeByteArrays(bytepad(fin, 136), in);
-        fin = mergeByteArrays(fin, new byte[] {0x04});
-        return sponge(fin, bitLen, 512);
+    public static byte[] cSHAKE256(byte[] x, int l, String n, String s) {
+        byte[] newX = concatByteArrays(encode_string(n.getBytes()), encode_string(s.getBytes()));
+        newX = concatByteArrays(bytepad(newX, 136), x);
+        return sponge(newX, l, 512);
     }
 
-    /**
-     * Produces a variable length message digest based on the keccak-f perumation
-     * over the user input. Ref. NIST FIPS 202 sec. 6.2
-     * @param in the bytes to compute the digest of
-     * @param bitLen the desired length of the output
-     * @return the message digest extracted from the keccakp based sponge
-     */
-    public static byte[] SHAKE256(byte[] in, int bitLen) {
-        byte[] uin = Arrays.copyOf(in, in.length + 1);
-        int bytesToPad = 136 - in.length % (136); // rate is 136 bytes
 
-        uin[in.length] = bytesToPad == 1 ? (byte) 0x9f : 0x1f; // pad with suffix defined in FIPS 202 sec. 6.2
-        return sponge(uin, bitLen, 512);
-    }
-
-    /**
-     * The SHA-3 hash function defined in NIST FIPS 202.
-     * @param in the bytes to compute the digest of
-     * @param bitLen the desired length of the output (must be 224, 256, 384, or 512)
-     * @return the message digest computed via the Keccak[bitLen*2] permutation
-     */
-    public static byte[] SHA3(byte[] in, int bitLen) {
-        if (bitLen != 224 && bitLen != 256 && bitLen != 384 && bitLen != 512)
-            throw new IllegalArgumentException("Supported output bit lengths are 224, 256, 384, and 512.");
-        byte[] uin = Arrays.copyOf(in, in.length + 1);
-        int bytesToPad = (1600 - bitLen*2) / 8 - in.length % (1600 - bitLen*2);
-        uin[in.length] = bytesToPad == 1 ? (byte) 0x86 : 0x06; // pad with suffix defined in FIPS 202 sec. 6.1
-        return sponge(uin, bitLen, bitLen*2);
-    }
+//    /**
+//     * The SHA-3 hash function defined in NIST FIPS 202.
+//     * @param in the bytes to compute the digest of
+//     * @param bitLen the desired length of the output (must be 224, 256, 384, or 512)
+//     * @return the message digest computed via the Keccak[bitLen*2] permutation
+//     */
+//    public static byte[] SHA3(byte[] in, int bitLen) {
+//        if (bitLen != 224 && bitLen != 256 && bitLen != 384 && bitLen != 512)
+//            throw new IllegalArgumentException("Supported output bit lengths are 224, 256, 384, and 512.");
+//        byte[] uin = Arrays.copyOf(in, in.length + 1);
+//        int bytesToPad = (1600 - bitLen*2) / 8 - in.length % (1600 - bitLen*2);
+//        uin[in.length] = bytesToPad == 1 ? (byte) 0x86 : 0x06; // pad with suffix defined in FIPS 202 sec. 6.1
+//        return sponge(uin, bitLen, bitLen*2);
+//    }
 
     /**
      * The sponge function, produces an output of length bitLen based on the
@@ -115,9 +120,12 @@ public class Keccak {
      */
     private static byte[] sponge(byte[] in, int bitLen, int cap) {
         int rate = 1600 - cap;
-        byte[] padded = in.length % (rate / 8) == 0 ? in : padTenOne(rate, in); // one bit of padding already appended
+        //System.out.println("before pad: "+byteArrayToHexString(in));
+        byte[] padded = in.length % (rate / 8) == 0 ? in : padTenStarOne(rate, in); // one bit of padding already appended in side of delimited suffix
+        //System.out.println("after pad: " + byteArrayToHexString(padded));
+
         long[][] states = byteArrayToStates(padded, cap);
-        long[] stcml = new long[3];
+        long[] stcml = new long[25];
         for (long[] st : states) {
             stcml = keccakp(xorStates(stcml, st), 1600, 24); // Keccak[c] restricted to bitLen 1600
         }
@@ -135,38 +143,28 @@ public class Keccak {
     }
 
     /**
-     * Applies the 10*1 padding scheme, ref sec 5.1 FIPS 202, to a byte array. Assumes
-     * padding required is byte wise (number of bits needed is multiple of 8).
-     * @param in the bytes array to pad
+     * ref sec 5.1 FIPS 202,and
+     * The implementation is strictly followed https://keccak.team/keccak_bits_and_bytes.html
+     * The delimited suffix of cSHAKE256: https://keccak.team/keccak_specs_summary.html
+     * @author Tin Phu
+     * @param x the bytes array to pad
      * @param rate the result will be a positive multiple of rate (in terms of bit length)
      * @return the padded byte array
      */
-    private static byte[] padTenOne(int rate, byte[] in) {
-        int bytesToPad = (rate / 8) - in.length % (rate / 8);
-        byte[] padded = new byte[in.length + bytesToPad];
-        for (int i = 0; i < in.length + bytesToPad; i++) {
-            if (i < in.length) padded[i] = in[i];
-            else if (i==in.length + bytesToPad - 1) padded[i] = (byte) 0x80; // does not append any domain prefixs
+    private static byte[] padTenStarOne(int rate, byte[] x) {
+        byte[] d = new byte[] {0x04}; // The delimited suffix of cSHAKE256
+        byte[] newX = concatByteArrays(x, d );
+        int bytesToPad = (rate / 8) - newX.length % (rate / 8);
+        byte[] padded = new byte[newX.length + bytesToPad];
+        for (int i = 0; i < newX.length + bytesToPad; i++) {
+            if (i < newX.length) padded[i] = newX[i];
+            else if (i==newX.length + bytesToPad - 1) padded[i] = (byte) 0x80; // 0x80 = 1000 0000
             else padded[i] = 0;
         }
         return padded;
     }
 
-    private static String byteArrayToBinary(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0'));
-        }
-        return sb.toString();
-    }
-    private static String byteArrayToHexString(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02X", b));
 
-        }
-        return sb.toString();
-    }
     /************************************************************
      *                    Keccak Machinery                      *
      ************************************************************/
@@ -267,38 +265,37 @@ public class Keccak {
 
     /**
      * Pads a bit string, sec 2.3.3 NIST SP 800-185
-     * @param str the bit string to pad
+     * @param x the bit string to pad
      * @param w the desired factor of the padding
      * @return a byte array prepended by lrEncode(w) such that it's length is an even multiple of w
      */
-    private static byte[] bytepad(byte[] str, int w) {
-        byte[] lEnc = lrEncode(w, ENCODE.Left);
-        int len = lEnc.length + str.length + (w - (lEnc.length + str.length) % w);
+    private static byte[] bytepad(byte[] x, int w) {
+        byte[] lEnc = left_encode(w);
+        int len = lEnc.length + x.length + (w - (lEnc.length + x.length) % w);
         byte[] out = Arrays.copyOf(lEnc, len);
-        System.arraycopy(str, 0, out, lEnc.length, str.length);
+        System.arraycopy(x, 0, out, lEnc.length, x.length);
         return out;
     }
 
     /**
      * The encodeString func, NIST SP 800-185 2.3.2
-     * @param str the bit string to encode (as a byte array)
+     * @param s the bit string to encode (as a byte array)
      * @return the bit string produced by prepending the encoding of str.length to str
      */
-    private static byte[] encodeString(byte[] str) {
-        byte[] lEnc = lrEncode(str.length*8, ENCODE.Left); // bitwise length encoding
-        byte[] out = Arrays.copyOf(lEnc, lEnc.length + str.length);
-        System.arraycopy(str, 0, out, lEnc.length, str.length);
+    private static byte[] encode_string(byte[] s) {
+        byte[] lEnc = left_encode(s.length*8); // bitwise length encoding
+        byte[] out = Arrays.copyOf(lEnc, lEnc.length + s.length);
+        System.arraycopy(s, 0, out, lEnc.length, s.length);
         return out;
     }
 
     /**
      * The left/right encode func specified in sec. 2.3.1 NIST SP 800-185
      * @param len the integer to encode
-     * @param dir the desired direction of the encoding
      * @return a byte array: see NIST SP 800-185 sec. 2.3.1
      */
-    private static byte[] lrEncode(long len, ENCODE dir) {
-        if (len==0) return dir == ENCODE.Left ? new byte[] {1, 0} : new byte[] {0, 1};
+    private static byte[] left_encode(long len) {
+        if (len==0) return  new byte[] {1, 0};
         byte[] buf = new byte[8];
         long l = len;
         int cnt = 0;
@@ -308,10 +305,11 @@ public class Keccak {
             buf[7 - cnt++] = b; // reverse for appropriate ordering
         }
         byte[] out = new byte[cnt + 1];
-        System.arraycopy(buf, 8 - cnt, out, dir == ENCODE.Left ? 1 : 0, cnt);
-        out[dir == ENCODE.Left ? 0 : out.length - 1] = (byte) cnt;
+        System.arraycopy(buf, 8 - cnt, out, 1, cnt);
+        out[0] = (byte) cnt;
         return out;
     }
+
 
     /**
      * Converts an extended state array to an array of bytes of bit length bitLen (equivalent to Trunc_r).
@@ -374,7 +372,7 @@ public class Keccak {
         return word;
     }
 
-    private static byte[] mergeByteArrays(byte[] b1, byte[] b2) {
+    private static byte[] concatByteArrays(byte[] b1, byte[] b2) {
         byte[] mrg = Arrays.copyOf(b1, b1.length + b2.length);
         System.arraycopy(b2, 0, mrg, b1.length, b2.length);
         return mrg;
@@ -403,5 +401,12 @@ public class Keccak {
         return exp;
     }
 
+    private static String byteArrayToBinary(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0'));
+        }
+        return sb.toString();
+    }
 
 }
