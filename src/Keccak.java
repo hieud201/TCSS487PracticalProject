@@ -82,11 +82,11 @@ public class Keccak {
      * cSHAKE func ref sec 3.3 NIST SP 800-185
      * skip SHAKE256 because in case of KMACXOF256 n is always "KMAC"
      * @author Tin Phu
-     * @param x the byte array to hash
-     * @param l the bit length for output
-     * @param n the name of the function
-     * @param s the customization string
-     * @return  Keccak[512] digest
+     * @param x the main input bit string
+     * @param l  an integer representing the requested output length in bits.
+     * @param n is a function-name bit string,
+     * @param s is a customization bit string
+     * @return hash value in byte[]
      */
     public static byte[] cSHAKE256(byte[] x, int l, String n, String s) {
         byte[] newX = concatByteArrays(encode_string(n.getBytes()), encode_string(s.getBytes()));
@@ -114,17 +114,17 @@ public class Keccak {
      * The sponge function, produces an output of length bitLen based on the
      * keccakp permutation over in.
      * @param in the input byte array
-     * @param bitLen the length of the desired output
-     * @param cap the capacity see section 4 FIPS 202.
-     * @return a byte array of bitLen bits produced by the keccakp permutations over the input
+     * @param d is output length
+     * @param c the capacity
+     * @return a byte array of d bits produced by the keccakp
      */
-    private static byte[] sponge(byte[] in, int bitLen, int cap) {
-        int rate = 1600 - cap;
+    private static byte[] sponge(byte[] in, int d, int c) {
+        int rate = 1600 - c;
         //System.out.println("before pad: "+byteArrayToHexString(in));
-        byte[] padded = in.length % (rate / 8) == 0 ? in : padTenStarOne(rate, in); // one bit of padding already appended in side of delimited suffix
+        byte[] padded = in.length % (rate / 8) == 0 ? in : padTenStarOne(rate, in);
         //System.out.println("after pad: " + byteArrayToHexString(padded));
 
-        long[][] states = byteArrayToStates(padded, cap);
+        long[][] states = byteArrayToStates(padded, c);
         long[] stcml = new long[25];
         for (long[] st : states) {
             stcml = keccakp(xorStates(stcml, st), 1600, 24); // Keccak[c] restricted to bitLen 1600
@@ -137,14 +137,14 @@ public class Keccak {
             System.arraycopy(stcml, 0, out, offset, rate/64);
             offset += rate/64;
             stcml = keccakp(stcml, 1600, 24);
-        } while (out.length*64 < bitLen);
+        } while (out.length*64 < d);
 
-        return stateToByteArray(out, bitLen);
+        return stateToByteArray(out, d);
     }
 
     /**
-     * ref sec 5.1 FIPS 202,and
-     * The implementation is strictly followed https://keccak.team/keccak_bits_and_bytes.html
+     * ref sec 5.1 FIPS 202
+     * The implementation strictly follows https://keccak.team/keccak_bits_and_bytes.html
      * The delimited suffix of cSHAKE256: https://keccak.team/keccak_specs_summary.html
      * @author Tin Phu
      * @param x the bytes array to pad
