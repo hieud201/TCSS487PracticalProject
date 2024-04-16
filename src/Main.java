@@ -30,9 +30,30 @@ public class Main {
                 (byte) 0xC0, (byte) 0xC1, (byte) 0xC2, (byte) 0xC3, (byte) 0xC4, (byte) 0xC5, (byte) 0xC6, (byte) 0xC7
         };
 
-        byte[] outBytes = Keccak.cSHAKE256(input, 512, "", "Email Signature");
-        System.out.println(byteArrayToHexString(outBytes));
+        byte[] input1 = {
 
+        };
+
+        byte[] key = {
+                (byte) 0x40, (byte) 0x41, (byte) 0x42, (byte) 0x43,
+                (byte) 0x44, (byte) 0x45, (byte) 0x46, (byte) 0x47,
+                (byte) 0x48, (byte) 0x49, (byte) 0x4A, (byte) 0x4B,
+                (byte) 0x4C, (byte) 0x4D, (byte) 0x4E, (byte) 0x4F,
+                (byte) 0x50, (byte) 0x51, (byte) 0x52, (byte) 0x53,
+                (byte) 0x54, (byte) 0x55, (byte) 0x56, (byte) 0x57,
+                (byte) 0x58, (byte) 0x59, (byte) 0x5A, (byte) 0x5B,
+                (byte) 0x5C, (byte) 0x5D, (byte) 0x5E, (byte) 0x5F
+        };
+//        byte[] outBytes = Keccak.cSHAKE256(input, 512, "", "Email Signature");
+//        System.out.println(byteArrayToHexString(outBytes));
+
+
+        byte[] outBytes3 = Keccak.KMACXOF256(key, input, 512, "My Tagged Application");
+        System.out.println(byteArrayToHexString(outBytes3));
+        //expected output: D5 BE 73 1C 95 4E D7 73 28 46 BB 59 DB E3 A8 E3
+        //0F 83 E7 7A 4B FF 44 59 F2 F1 C2 B4 EC EB B8 CE
+        //67 BA 01 C6 2E 8A B8 57 8D 2D 49 9B D1 BB 27 67
+        //68 78 11 90 02 0A 30 6A 97 DE 28 1D CC 30 30 5D
 
     }
 
