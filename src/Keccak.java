@@ -7,14 +7,16 @@
 import java.util.Arrays;
 
 /**
- * Implements the Keccak-p function and associated sponge modality.
- * @author Spencer Little
+ * Implemention of KMACXOF256
+ * @author
  * @version 1.0.0
  */
 public class Keccak {
 
-    /* Round constants ref. https://keccak.team/keccak_specs_summary.html */
-    private static final long[] rConst = {
+    /* Round constants
+     *  ref. https://keccak.team/keccak_specs_summary.html
+     */
+    private static final long[] roundConstants = {
             0x0000000000000001L, 0x0000000000008082L, 0x800000000000808aL,
             0x8000000080008000L, 0x000000000000808BL, 0x0000000080000001L,
             0x8000000080008081L, 0x8000000000008009L, 0x000000000000008aL,
@@ -26,10 +28,10 @@ public class Keccak {
     };
 
     /*
-     * Rotation offsets for the roh function.
+     * Rotation offsets
      * ref. https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
      */
-    private static final int[] rotOffset = {
+    private static final int[] rotationOffsets = {
             1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14,
             27, 41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44
     };
@@ -72,12 +74,6 @@ public class Keccak {
     }
 
 
-
-
-
-
-
-
     /**
      * cSHAKE func ref sec 3.3 NIST SP 800-185
      * skip SHAKE256 because in case of KMACXOF256 n is always "KMAC"
@@ -91,7 +87,7 @@ public class Keccak {
     public static byte[] cSHAKE256(byte[] x, int l, String n, String s) {
         byte[] newX = concatByteArrays(encode_string(n.getBytes()), encode_string(s.getBytes()));
         newX = concatByteArrays(bytepad(newX, 136), x);
-        return sponge(newX, l, 512);
+        return sponge(newX, l, 512); // The capacity is always 512 for cSHAKE256.
     }
 
 
@@ -120,17 +116,19 @@ public class Keccak {
      */
     private static byte[] sponge(byte[] in, int d, int c) {
         int rate = 1600 - c;
+        long[] out = {};
         //System.out.println("before pad: "+byteArrayToHexString(in));
         byte[] padded = in.length % (rate / 8) == 0 ? in : padTenStarOne(rate, in);
         //System.out.println("after pad: " + byteArrayToHexString(padded));
 
+
+        // KECCAK-p PERMUTATIONS
         long[][] states = byteArrayToStates(padded, c);
         long[] stcml = new long[25];
         for (long[] st : states) {
             stcml = keccakp(xorStates(stcml, st), 1600, 24); // Keccak[c] restricted to bitLen 1600
         }
 
-        long[] out = {};
         int offset = 0;
         do {
             out = Arrays.copyOf(out, offset + rate/64);
@@ -148,20 +146,20 @@ public class Keccak {
      * The delimited suffix of cSHAKE256: https://keccak.team/keccak_specs_summary.html
      * @author Tin Phu
      * @param x the bytes array to pad
-     * @param rate the result will be a positive multiple of rate (in terms of bit length)
+     * @param rate  in terms of bit length
      * @return the padded byte array
      */
     private static byte[] padTenStarOne(int rate, byte[] x) {
         byte[] d = new byte[] {0x04}; // The delimited suffix of cSHAKE256
         byte[] newX = concatByteArrays(x, d );
         int bytesToPad = (rate / 8) - newX.length % (rate / 8);
-        byte[] padded = new byte[newX.length + bytesToPad];
+        byte[] paddedX = new byte[newX.length + bytesToPad];
         for (int i = 0; i < newX.length + bytesToPad; i++) {
-            if (i < newX.length) padded[i] = newX[i];
-            else if (i==newX.length + bytesToPad - 1) padded[i] = (byte) 0x80; // 0x80 = 1000 0000
-            else padded[i] = 0;
+            if (i < newX.length) paddedX[i] = newX[i];
+            else if (i==newX.length + bytesToPad - 1) paddedX[i] = (byte) 0x80; // 0x80 = 1000 0000
+            else paddedX[i] = 0;
         }
-        return padded;
+        return paddedX;
     }
 
 
@@ -224,7 +222,7 @@ public class Keccak {
         for (int i = 0; i < 24; i++) {
             ind = piLane[i];
             temp = stateIn[ind];
-            stateOut[ind] = lRotWord(t, rotOffset[i]);
+            stateOut[ind] = lRotWord(t, rotationOffsets[i]);
             t = temp;
         }
         return stateOut;
@@ -254,7 +252,7 @@ public class Keccak {
      * @return the state after the round constant has been xored with the first lane (st[0])
      */
     private static long[] iota(long[] stateIn, int round) {
-        stateIn[0] ^= rConst[round];
+        stateIn[0] ^= roundConstants[round];
         return stateIn;
     }
 
@@ -270,10 +268,10 @@ public class Keccak {
      * @return a byte array prepended by lrEncode(w) such that it's length is an even multiple of w
      */
     private static byte[] bytepad(byte[] x, int w) {
-        byte[] lEnc = left_encode(w);
-        int len = lEnc.length + x.length + (w - (lEnc.length + x.length) % w);
-        byte[] out = Arrays.copyOf(lEnc, len);
-        System.arraycopy(x, 0, out, lEnc.length, x.length);
+        byte[] encodedW = left_encode(w);
+        int len = encodedW.length + x.length + (w - (encodedW.length + x.length) % w);
+        byte[] out = Arrays.copyOf(encodedW, len);
+        System.arraycopy(x, 0, out, encodedW.length, x.length);
         return out;
     }
 
@@ -283,31 +281,27 @@ public class Keccak {
      * @return the bit string produced by prepending the encoding of str.length to str
      */
     private static byte[] encode_string(byte[] s) {
-        byte[] lEnc = left_encode(s.length*8); // bitwise length encoding
-        byte[] out = Arrays.copyOf(lEnc, lEnc.length + s.length);
-        System.arraycopy(s, 0, out, lEnc.length, s.length);
+        byte[] len = left_encode(s.length* 8L); // bitwise length encoding
+        byte[] out = Arrays.copyOf(len, len.length + s.length);
+        System.arraycopy(s, 0, out, len.length, s.length);
         return out;
     }
 
     /**
-     * The left/right encode func specified in sec. 2.3.1 NIST SP 800-185
+     *  left_encode func in sec. 2.3.1 NIST SP 800-185
+     *  P.s: đã xào by Tin.
      * @param len the integer to encode
      * @return a byte array: see NIST SP 800-185 sec. 2.3.1
      */
     private static byte[] left_encode(long len) {
-        if (len==0) return  new byte[] {1, 0};
-        byte[] buf = new byte[8];
-        long l = len;
-        int cnt = 0;
-        while (l > 0) {
-            byte b = (byte) (l & 0xffL);
-            l = l>>>(8);
-            buf[7 - cnt++] = b; // reverse for appropriate ordering
+        int n = 1;
+        while ((1 << (8 * n)) <= len) n++;  // Find  the number of bits needed to represent the length
+        byte[] encoding = new byte[n + 1];
+        encoding[0] = (byte) n; // The first byte is the length
+        for (int i = 1; i <= n; i++) {
+            encoding[i] = (byte) (len >> (8 * (n - i)));
         }
-        byte[] out = new byte[cnt + 1];
-        System.arraycopy(buf, 8 - cnt, out, 1, cnt);
-        out[0] = (byte) cnt;
-        return out;
+        return encoding;
     }
 
 
@@ -392,7 +386,6 @@ public class Keccak {
     }
 
     private static int floorLog(int n) {
-        if (n < 0) throw new IllegalArgumentException("Log is undefined for negative numbers.");
         int exp = -1;
         while (n > 0) {
             n = n>>>1;
