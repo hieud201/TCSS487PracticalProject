@@ -1,14 +1,8 @@
-/*
- * Implementation of the Keccak[c] function defined in NIST FIPS 202.
- * Author: Spencer Little
- * Date: 01/22/2020
- */
-
 import java.util.Arrays;
 
 /**
  * Implemention of KMACXOF256
- * @author
+ * @author Tin Phu, Hieu Doan, An Ho
  * @version 1.0.0
  */
 public class Keccak {
@@ -91,24 +85,10 @@ public class Keccak {
     }
 
 
-//    /**
-//     * The SHA-3 hash function defined in NIST FIPS 202.
-//     * @param in the bytes to compute the digest of
-//     * @param bitLen the desired length of the output (must be 224, 256, 384, or 512)
-//     * @return the message digest computed via the Keccak[bitLen*2] permutation
-//     */
-//    public static byte[] SHA3(byte[] in, int bitLen) {
-//        if (bitLen != 224 && bitLen != 256 && bitLen != 384 && bitLen != 512)
-//            throw new IllegalArgumentException("Supported output bit lengths are 224, 256, 384, and 512.");
-//        byte[] uin = Arrays.copyOf(in, in.length + 1);
-//        int bytesToPad = (1600 - bitLen*2) / 8 - in.length % (1600 - bitLen*2);
-//        uin[in.length] = bytesToPad == 1 ? (byte) 0x86 : 0x06; // pad with suffix defined in FIPS 202 sec. 6.1
-//        return sponge(uin, bitLen, bitLen*2);
-//    }
-
     /**
      * The sponge function, produces an output of length bitLen based on the
      * keccakp permutation over in.
+     * @author Tin Phu
      * @param in the input byte array
      * @param d is output length
      * @param c the capacity
@@ -116,30 +96,100 @@ public class Keccak {
      */
     private static byte[] sponge(byte[] in, int d, int c) {
         int rate = 1600 - c;
-        long[] out = {};
+        long[] z = {};
         //System.out.println("before pad: "+byteArrayToHexString(in));
         byte[] padded = in.length % (rate / 8) == 0 ? in : padTenStarOne(rate, in);
         //System.out.println("after pad: " + byteArrayToHexString(padded));
 
 
         //FIPS PUB 202, Algorithm 8, step 4: Let P0, … , Pn-1 be the unique sequence of strings of length r such that P = P0 || … || Pn-1.
-        // the inner array of states should already include 0 for the remaining bit as Pi||0^c (Step 6)
-        long[][] states = byteArrayToStates(padded, c); // "denotes a 5-by-5-by-w array of bits that represents the state" 3.1 in FIPS PUB 202
+        // byteArrayToStates's implementation  strictly follows tiny_sha3 by mjosaarinen
+        // https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
+        long[][] states = byteArrayToStates(padded, c); //
+
+
+
         long[] stcml = new long[25]; //we combined 5x5 Slice into an array instead of Arr[5][5]
+        //FIPS PUB 202, Algorithm 8, step 6:
         for (long[] st : states) {
             stcml = keccakp(xorStates(stcml, st), 1600, 24); //  bitLen is 1600 and 24 rounds based on section 5.2 in FIPS PUB 202
         }
-
+        //FIPS PUB 202, Algorithm 8, step 8 9 10 loop.
         int offset = 0;
         do {
-            out = Arrays.copyOf(out, offset + rate/64);
-            System.arraycopy(stcml, 0, out, offset, rate/64);
+            z = Arrays.copyOf(z, offset + rate/64);
+            // //FIPS PUB 202, Algorithm 8, step 8: Let Z=Z || Truncr(S).
+            System.arraycopy(stcml, 0, z, offset, rate/64);
             offset += rate/64;
             stcml = keccakp(stcml, 1600, 24);
-        } while (out.length*64 < d);
+        } while (z.length*64 < d);
 
-        return stateToByteArray(out, d);
+        return stateToByteArray(z, d);
     }
+
+    /**
+     * Converts state arrays back to a byte array
+     * @author Tin Phu
+     * @param state the state to convert to a byte array
+     * @param bitLen the bit length of the desired output
+     * @return a byte array of length bitLen/8 corresponding to bytes of the state: state[0:bitLen/8]
+     */
+    private static byte[] stateToByteArray(long[] state, int bitLen) {
+        byte[] out = new byte[bitLen/8];
+        int i = 0;
+        while (i*64 < bitLen) {
+            long word = state[i++];
+            int fill = i*64 > bitLen ? (bitLen - (i - 1) * 64) / 8 : 8;
+            for (int b = 0; b < fill; b++) {
+                byte ubt = (byte) (word>>>(8*b) & 0xFF);
+                out[(i - 1)*8 + b] = ubt;
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Converts a byte array to series of state arrays.
+     * This strictly follows tiny_sha3.c by mjosaarinen
+     * https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
+     *================================================================
+     *     for (i = 0; i < 25; i++) {
+     *         v = (uint8_t *) &st[i];
+     *         st[i] = ((uint64_t) v[0])     | (((uint64_t) v[1]) << 8) |
+     *             (((uint64_t) v[2]) << 16) | (((uint64_t) v[3]) << 24) |
+     *             (((uint64_t) v[4]) << 32) | (((uint64_t) v[5]) << 40) |
+     *             (((uint64_t) v[6]) << 48) | (((uint64_t) v[7]) << 56);
+     *     }
+     * @author Tin Phu, mjosaarinen
+     * @param in the input bytes
+     * @param cap the capacity
+     * @return a two dimensional array states.
+     */
+    private static long[][] byteArrayToStates(byte[] in, int cap) {
+        long[][] states = new long[(in.length*8)/(1600-cap)][25];
+        //System.out.println((in.length*8)/(1600-cap));
+        int offset = 0;
+        for (int i = 0; i < states.length; i++) {
+            long[] state = new long[25];
+
+            //FIPS PUB 202, Algorithm 8, step 4: Let P0, … , Pn-1 be the unique sequence of strings of length r such that P = P0 || … || Pn-1.
+            //the unique sequence of strings of length 64 bits
+            for (int j = 0; j < (1600-cap)/64; j++) {
+                //Converts the bytes  into a 64 bit word (long)
+                long word = 0L;
+                for (int z = 0; z < 8; z++) {
+                    word += (((long)in[offset + z]) & 0xff)<<(8*z);
+                }
+                state[j] = word;
+                offset += 8; // value of offset [0, 8, 16, 24, 32, 40, 48, 56]
+
+            }
+            states[i] = state;
+
+        }
+        return states;
+    }
+
 
     /**
      * ref sec 5.1 FIPS 202
@@ -162,11 +212,6 @@ public class Keccak {
         }
         return paddedX;
     }
-
-
-    /************************************************************
-     *                    Keccak Machinery                      *
-     ************************************************************/
 
 
     /**
@@ -258,9 +303,7 @@ public class Keccak {
     }
 
 
-    /************************************************************
-     *                    Auxiliary Methods                     *
-     ************************************************************/
+
 
     /**
      * Pads a bit string, sec 2.3.3 NIST SP 800-185
@@ -306,63 +349,7 @@ public class Keccak {
     }
 
 
-    /**
-     * Converts an extended state array to an array of bytes of bit length bitLen (equivalent to Trunc_r).
-     * @param state the state to convert to a byte array
-     * @param bitLen the bit length of the desired output
-     * @return a byte array of length bitLen/8 corresponding to bytes of the state: state[0:bitLen/8]
-     */
-    private static byte[] stateToByteArray(long[] state, int bitLen) {
-        if (state.length*64 < bitLen) throw new IllegalArgumentException("State is of insufficient length to produced desired bit length.");
-        byte[] out = new byte[bitLen/8];
-        int wrdInd = 0;
-        while (wrdInd*64 < bitLen) {
-            long word = state[wrdInd++];
-            int fill = wrdInd*64 > bitLen ? (bitLen - (wrdInd - 1) * 64) / 8 : 8;
-            for (int b = 0; b < fill; b++) {
-                byte ubt = (byte) (word>>>(8*b) & 0xFF);
-                out[(wrdInd - 1)*8 + b] = ubt;
-            }
-        }
 
-        return out;
-    }
-
-    /**
-     * Converts a byte array to series of state arrays.
-     * @param in the input bytes
-     * @param cap the capacity
-     * @return a two dimensional array in which the inner array is 5x5 slide.
-     */
-    private static long[][] byteArrayToStates(byte[] in, int cap) {
-        long[][] states = new long[(in.length*8)/(1600-cap)][25];
-        int offset = 0;
-        for (int i = 0; i < states.length; i++) {
-            long[] state = new long[25];
-            for (int j = 0; j < (1600-cap)/64; j++) {
-                long word = bytesToWord(offset, in);
-                state[j] = word;
-                offset += 8;
-            }
-            // remaining words will be 0 according to Algorithm 8. step 6 FIPS 202
-            states[i] = state;
-        }
-        return states;
-    }
-
-    /**
-     * Converts the bytes from in[l,r] into a 64 bit word (long)
-     * @param offset the position in the array to read the eight bytes from
-     * @param in the byte array to read from
-     * @return a long that is the result of concatenating the eight bytes beginning at offset
-     */
-    private static long bytesToWord(int offset, byte[] in) {
-        long word = 0L;
-        for (int i = 0; i < 8; i++) {
-            word += (((long)in[offset + i]) & 0xff)<<(8*i);
-        }
-        return word;
-    }
 
     private static byte[] concatByteArrays(byte[] b1, byte[] b2) {
         byte[] mrg = Arrays.copyOf(b1, b1.length + b2.length);
