@@ -341,7 +341,6 @@ public class Keccak {
             long[] state = new long[25];
             for (int j = 0; j < (1600-cap)/64; j++) {
                 long word = bytesToWord(offset, in);
-                System.out.println("word:" + word);
                 state[j] = word;
                 offset += 8;
             }
