@@ -122,11 +122,12 @@ public class Keccak {
         //System.out.println("after pad: " + byteArrayToHexString(padded));
 
 
-        // KECCAK-p PERMUTATIONS
-        long[][] states = byteArrayToStates(padded, c);
-        long[] stcml = new long[25];
+        //FIPS PUB 202, Algorithm 8, step 4: Let P0, … , Pn-1 be the unique sequence of strings of length r such that P = P0 || … || Pn-1.
+        // the inner array of states should already include 0 for the remaining bit as Pi||0^c (Step 6)
+        long[][] states = byteArrayToStates(padded, c); // "denotes a 5-by-5-by-w array of bits that represents the state" 3.1 in FIPS PUB 202
+        long[] stcml = new long[25]; //we combined 5x5 Slice into an array instead of Arr[5][5]
         for (long[] st : states) {
-            stcml = keccakp(xorStates(stcml, st), 1600, 24); // Keccak[c] restricted to bitLen 1600
+            stcml = keccakp(xorStates(stcml, st), 1600, 24); //  bitLen is 1600 and 24 rounds based on section 5.2 in FIPS PUB 202
         }
 
         int offset = 0;
@@ -174,12 +175,12 @@ public class Keccak {
      * @return the state after the Keccak-p permutation has been applied
      */
     private static long[] keccakp(long[] stateIn, int bitLen, int rounds) {
-        long[] stateOut = stateIn;
+        long[] tempState = stateIn;
         int l = floorLog(bitLen/25);
         for (int i = 12 + 2*l - rounds; i < 12 + 2*l; i++) {
-            stateOut = iota(chi(rhoPhi(theta(stateOut))), i); // sec 3.3 FIPS 202
+            tempState = iota(chi(rhoPhi(theta(tempState))), i); // sec 3.3 FIPS 202
         }
-        return stateOut;
+        return tempState;
     }
 
     /**
@@ -328,11 +329,10 @@ public class Keccak {
     }
 
     /**
-     * Converts a byte array to series of state arrays. Assumes input array is
-     * evenly divisible by the rate (1600-cap)
+     * Converts a byte array to series of state arrays.
      * @param in the input bytes
-     * @param cap the capacity see section 4 FIPS 202.
-     * @return a two dimensional array corresponding to an array of in.length/(1600-cap) state arrays
+     * @param cap the capacity
+     * @return a two dimensional array in which the inner array is 5x5 slide.
      */
     private static long[][] byteArrayToStates(byte[] in, int cap) {
         long[][] states = new long[(in.length*8)/(1600-cap)][25];
@@ -341,10 +341,11 @@ public class Keccak {
             long[] state = new long[25];
             for (int j = 0; j < (1600-cap)/64; j++) {
                 long word = bytesToWord(offset, in);
+                System.out.println("word:" + word);
                 state[j] = word;
                 offset += 8;
             }
-            // remaining (capacity/64) words will be 0, ref alg 8. step 6 FIPS 202
+            // remaining words will be 0 according to Algorithm 8. step 6 FIPS 202
             states[i] = state;
         }
         return states;
@@ -357,8 +358,6 @@ public class Keccak {
      * @return a long that is the result of concatenating the eight bytes beginning at offset
      */
     private static long bytesToWord(int offset, byte[] in) {
-        if (in.length < offset+8) throw new IllegalArgumentException("Byte range unreachable, index out of range.");
-        // does endianness matter here?
         long word = 0L;
         for (int i = 0; i < 8; i++) {
             word += (((long)in[offset + i]) & 0xff)<<(8*i);
