@@ -1,3 +1,9 @@
+import java.io.*;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 // run this code after you make change to keccak to see if it still runs correctly.
 public class CorrectionTestAfterChange {
     public static void main(String[] args) {
@@ -30,9 +36,7 @@ public class CorrectionTestAfterChange {
                 (byte) 0xC0, (byte) 0xC1, (byte) 0xC2, (byte) 0xC3, (byte) 0xC4, (byte) 0xC5, (byte) 0xC6, (byte) 0xC7
         };
 
-        byte[] input1 = {
 
-        };
 
         byte[] key = {
                 (byte) 0x40, (byte) 0x41, (byte) 0x42, (byte) 0x43,
@@ -44,17 +48,50 @@ public class CorrectionTestAfterChange {
                 (byte) 0x58, (byte) 0x59, (byte) 0x5A, (byte) 0x5B,
                 (byte) 0x5C, (byte) 0x5D, (byte) 0x5E, (byte) 0x5F
         };
+
+        String k = new String(key);
 //        byte[] outBytes = Keccak.cSHAKE256(input, 512, "", "Email Signature");
 //        System.out.println(byteArrayToHexString(outBytes));
+        String filePath = "src/dataInput.txt";
+        try {
+            byte[] byteArray = readByteArrayFromFile(filePath);
+            System.out.println("Byte array read from file: " + byteArrayToHexString(byteArray));
+            byte[] outBytes = Keccak.KMACXOF256(k, byteArray, 512, "My Tagged Application");
+            System.out.println(byteArrayToHexString(outBytes));
+
+        } catch (IOException e) {
+            System.err.println("Error reading file: " + e.getMessage());
+        }
 
 
-        byte[] outBytes3 = Keccak.KMACXOF256(key, input, 512, "My Tagged Application");
-        System.out.println(byteArrayToHexString(outBytes3));
+
+
         //expected output: D5 BE 73 1C 95 4E D7 73 28 46 BB 59 DB E3 A8 E3
         //0F 83 E7 7A 4B FF 44 59 F2 F1 C2 B4 EC EB B8 CE
         //67 BA 01 C6 2E 8A B8 57 8D 2D 49 9B D1 BB 27 67
         //68 78 11 90 02 0A 30 6A 97 DE 28 1D CC 30 30 5D
 
+    }
+
+    public static byte[] readByteArrayFromFile(String filePath) throws IOException {
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new FileReader(filePath));
+            String line = reader.readLine();
+            if (line == null) {
+                throw new IOException("File is empty");
+            }
+            String[] hexValues = line.trim().split("\\s+");
+            byte[] byteArray = new byte[hexValues.length];
+            for (int i = 0; i < hexValues.length; i++) {
+                byteArray[i] = (byte) Integer.parseInt(hexValues[i], 16);
+            }
+            return byteArray;
+        } finally {
+            if (reader != null) {
+                reader.close();
+            }
+        }
     }
 
     private static String byteArrayToBinary(byte[] bytes) {

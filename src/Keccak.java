@@ -43,14 +43,16 @@ public class Keccak {
     /**
      * The Keccak Message Authentication with extensible output, ref NIST SP 800-185 sec 4.3.1
      * @Author Tin Phu
-     * @param k the key
+     * @param k the key as a string
      * @param x the input bytes
      * @param l the desired bit length
      * @param s the customization string
      * @return the message authentication code derived from the provided input
      */
-    public static byte[] KMACXOF256(byte[] k, byte[] x, int l, String s) {
-        byte[] newX = concatByteArrays(bytepad(encode_string(k), 136), x);
+    public static byte[] KMACXOF256(String k, byte[] x, int l, String s) {
+
+        byte[] byteK = k.getBytes();
+        byte[] newX = concatByteArrays(bytepad(encode_string(byteK), 136), x);
         //in case of KMACXOF256, right_encode(0) is always used.
         byte[] right_encodeZERO = {
                  (byte) 0x00, (byte) 0x01
