@@ -152,7 +152,7 @@ public class Main {
     }
 
     private static void encryptFile() {
-        // Implement symmetric encryption of a file
+        //Use must create a new Xor for Byte[], the one that we have is for States only long[] (Tin Phu)
 //        String filePath = "src/dataInput.txt";
 //        try {
 //            byte[] byteArray = readByteArrayFromFile(filePath);
@@ -165,6 +165,7 @@ public class Main {
 
     private static void decryptFile() {
         // Implement symmetric encryption of a file
+        //Use must create a new Xor for Byte[], the one that we have is for States only long[] (Tin Phu)
 //        String filePath = "src/dataInput.txt";
 //        try {
 //            byte[] byteArray = readByteArrayFromFile(filePath);
