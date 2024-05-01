@@ -162,7 +162,6 @@ public class Main {
      * @throws IOException if an I/O error with reading from a file occurs during the decryption process.
      */
     private static void decryptFile() throws IOException {
-        boolean correct = true;
         String filePath = "src/encryptedFile.txt";
 
         try (BufferedReader fileReader = new BufferedReader(new FileReader(filePath))) {
@@ -192,13 +191,7 @@ public class Main {
             // t’ <- KMACXOF256(ka, m, 512, “SKA”)
             byte[] tPrime = Keccak.KMACXOF256(Arrays.toString(ka), m, 512, "SKA");
 
-            // Compares t versus t' byte by byte
-            for (int i = 0; i < tPrime.length; i++) {
-                correct = (t[i] == tPrime[i]);
-            }
-
-            //
-            if (correct) {
+            if (Arrays.equals(t, tPrime)) {
                 System.out.println("Passphrase Accepted. Decrypted output: ");
                 System.out.println(byteArrayToHexString(m));
             } else {
