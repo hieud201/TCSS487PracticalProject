@@ -351,20 +351,52 @@ public class Keccak {
     }
 
 
-
-
-    private static byte[] concatByteArrays(byte[] b1, byte[] b2) {
+    /************************************************************
+     *                      Helper Methods                      *
+     ************************************************************/
+    /**
+     * Returns a concatenated byte array (b1 + b2) from the two input byte arrays.
+     * @author Tin Phu
+     * @param b1 the first byte array
+     * @param b2 the second state array
+     * @return The concatenated byte array
+     */
+    public static byte[] concatByteArrays(byte[] b1, byte[] b2) {
         byte[] mrg = Arrays.copyOf(b1, b1.length + b2.length);
         System.arraycopy(b2, 0, mrg, b1.length, b2.length);
         return mrg;
     }
 
+    /**
+     * Performs a bit-wise XOR operation on the given state arrays of type long
+     * and returns the resulted long array.
+     * @author Tin Phu
+     * @param s1 the first state array
+     * @param s2 the second state array
+     * @return The resulted long array
+     */
     private static long[] xorStates(long[] s1, long[] s2) {
         long[] out = new long[25];
         for (int i = 0; i < s1.length; i++) {
             out[i] = s1[i] ^ s2[i];
         }
         return out;
+    }
+
+    /**
+     * Performs a bit-wise XOR operation on the given byte arrays
+     * and returns the resulted byte array.
+     * @author Hieu Doan
+     * @param b1 the first byte array
+     * @param b2 the second byte array
+     * @return The resulted byte array
+     */
+    public static byte[] xorBytes(byte[] b1, byte[] b2) {
+        byte[] res = new byte[b1.length];
+        for (int i = 0; i < b1.length; i++) {
+            res[i] = (byte) (b1[i] ^ b2[i]);
+        }
+        return res;
     }
 
     private static long lRotWord(long w, int offset) {

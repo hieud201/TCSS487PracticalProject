@@ -1,0 +1,6 @@
+***
+Replace this line with actual encrypted info. Format for encrypted output should be:
+z for line 1
+c for line 2
+t for line 3
+***
