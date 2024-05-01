@@ -2,11 +2,12 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
-import java.security.SecureRandom;
 
 public class Main {
     /**
@@ -154,12 +155,13 @@ public class Main {
 
     /**
      * Decrypts a symmetric cryptogram under a given passphrase.
+     *
+     * @throws IOException if an I/O error with reading from a file occurs during the decryption process.
      * @author Hieu Doan
      * Largely inspired from
      * <a href="https://github.com/skweston/SHA3/blob/master/Driver.java#L388">
      * https://github.com/skweston/SHA3/blob/master/Driver.java#L388
      * </a>
-     * @throws IOException if an I/O error with reading from a file occurs during the decryption process.
      */
     private static void decryptFile() throws IOException {
         String filePath = "src/encryptedFile.txt";
@@ -167,9 +169,9 @@ public class Main {
         try (BufferedReader fileReader = new BufferedReader(new FileReader(filePath))) {
             // Reads z, c, t from encrypted file
             List<String> encryptedLines = fileReader.lines().toList();
-            byte[] z = encryptedLines.get(0).getBytes();
-            byte[] c = encryptedLines.get(1).getBytes();
-            byte[] t = encryptedLines.get(2).getBytes();
+            byte[] z = readByteArrayFromString(encryptedLines.get(0));
+            byte[] c = readByteArrayFromString(encryptedLines.get(1));
+            byte[] t = readByteArrayFromString(encryptedLines.get(2));
 
             // Reads user's given passphrase
             String pw = readStringInput("Enter the passphrase used to encrypt (as a character string): ");
@@ -177,7 +179,7 @@ public class Main {
 
             //(ke || ka) <- KMACXOF256(z || pw, “”, 1024, “S”)
             byte[] zAndpw = Keccak.concatByteArrays(z, pw.getBytes());
-            byte[] keAndka = Keccak.KMACXOF256(Arrays.toString(zAndpw), "".getBytes(), 1024, "S");
+            byte[] keAndka = Keccak.KMACXOF256(new String(zAndpw), "".getBytes(), 1024, "S");
 
             // Splits keAndka into their own individual arrays
             int kekaSize = keAndka.length / 2;
@@ -186,10 +188,10 @@ public class Main {
 
             // m <- KMACXOF256(ke, "", |c|, "SKE") xor c
             byte[] m = Keccak.xorBytes(
-                    Keccak.KMACXOF256(Arrays.toString(ke), "".getBytes(), c.length, "SKE"), c);
+                    Keccak.KMACXOF256(new String(ke), "".getBytes(), c.length, "SKE"), c);
 
             // t’ <- KMACXOF256(ka, m, 512, “SKA”)
-            byte[] tPrime = Keccak.KMACXOF256(Arrays.toString(ka), m, 512, "SKA");
+            byte[] tPrime = Keccak.KMACXOF256(new String(ka), m, 512, "SKA");
 
             if (Arrays.equals(t, tPrime)) {
                 System.out.println("Passphrase Accepted. Decrypted output: ");
@@ -200,7 +202,6 @@ public class Main {
 
         } catch (FileNotFoundException e) {
             System.err.println("Error reading file: " + e.getMessage());
-
         }
     }
 
@@ -255,6 +256,16 @@ public class Main {
 
     }
 
+    private static byte[] readByteArrayFromString(String s) {
+        String[] hexValues = s.split("\\s+");
+        byte[] byteArray = new byte[hexValues.length];
+
+        for (int i = 0; i < hexValues.length; i++) {
+            byteArray[i] = (byte) Integer.parseInt(hexValues[i], 16);
+        }
+        return byteArray;
+    }
+
     public static byte[] readByteArrayFromFile(String filePath) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line = reader.readLine();
@@ -269,5 +280,4 @@ public class Main {
             return byteArray;
         }
     }
-
 }
