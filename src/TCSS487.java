@@ -6,7 +6,6 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.Scanner;
 
 /**
  *  javac TCSS487.java to compile the file at its current dir.
@@ -14,34 +13,34 @@ import java.util.Scanner;
  * Compute a plain cryptographic hash (KMACXOF256)
  *
  * Compute a plain cryptographic hash from user input:
- *          java TCSS478 hashUserInput HexaCode(01 02 03)
+ *          java TCSS478 hash -code HexaCode(01 02 03)
  * Compute a plain cryptographic hash from file:
  *  Hashing from the default file (./dataInput.txt)
- *          java TCSS478 hashFromFile
+ *          java TCSS478 hash -file C:\Users\xx\xx
  *  Hashing from a pathFile  (./dataInput.txt)
- * 	        java TCSS478 hashFromFile pathFile
+ * 	        java TCSS478 hash -file C:\Users\xx\xx
  * ====================================================
  * Compute an authentication tag (MAC)
  *
  * Compute an authentication tag (MAC) from user input:
- *         java TCSS478 macUserInput pw HexaCode(01 02 03)
+ *         java TCSS478 mac -pw passwords -code HexaCode(01 02 03)
  * Compute an authentication tag (MAC) from file
  * 		Computing from the default file (./dataInput.txt):
- *          java TCSS478 macFromFile pw HexaCode(01 02 03)
+ *          java TCSS478 mac -pw passwords -file
  *      Computing from a pathFile:
- * 	        java TCSS478 macFromFile pw pathFile
+ * 	        java TCSS478 mac -pw passwords -file C:\Users\xx\xx
  *=========================================================
  * Encrypt a file symmetrically
  * 	    Computing from the default file (./toBeEncrypted.txt):
- *          java TCSS478 encrypt pw
+ *          java TCSS478 encrypt -pw passwords
  *      Computing from a pathFile:
- * 	        java TCSS478 encrypt pw pathFile
+ * 	        java TCSS478 encrypt -pw passwords -file C:\Users\xx\xx
  * ==================================================
  * Decrypt a symmetric cryptogram
  * 		Decrypt from the default file (./encryptedFile.txt):
- * 			java TCSS478 decrypt pw
+ * 			java TCSS478 decrypt -pw passwords
  * 		Decrypt from a pathFile  (./encryptedFile.txt):
- * 			java TCSS478 decrypt pw pathFile
+ * 			java TCSS478 decrypt -pw passwords -file C:\Users\xx\xx
  */
 public class TCSS487 {
     //generate Secured Random number.
@@ -58,62 +57,72 @@ public class TCSS487 {
             System.out.println("Usage: java Main <command>");
             return;
         }
-
+        CommandLineArgsHandler handler = new CommandLineArgsHandler(args);
+        System.out.println(handler.toString());
         String command = args[0];
         switch (command) {
-            case "hashUserInput":
-                computeHashFromUserInput(args);
+            case "hash":
+                if(handler.hasTag("file")){
+                    if (handler.getValue("file").isEmpty()) { // using default filePath: ./dataInput.txt
+                        String currentDir = System.getProperty("user.dir");
+                        System.out.println("Readding from: " + currentDir + "\\dataInput.txt" );
+
+                        computeHashFromFile(currentDir + "\\dataInput.txt");
+                    } else computeHashFromFile(handler.getValue("file"));
+                    break;
+                } else
+                    computeHashFromUserInput(handler.getValue("code"));
                 break;
-            case "hashFromFile":
-                if (args.length == 1) { // using default filePath: ./dataInput.txt
-                    String currentDir = System.getProperty("user.dir");
-                    computeHashFromFile(currentDir + "\\dataInput.txt");
-                } else computeHashFromFile(args[1]);
-                break;
-            case "macUserInput":
-                if (args.length < 2) {
-                    System.out.println("Error: please provide passphrase");
-                    return;
+            case "mac":
+                if(handler.hasTag("file")){
+                    if(!handler.hasTag("pw")){
+                        System.out.println("Missing -pw");
+                    } else if(handler.getValue("file").isEmpty()) {
+                        String currentDir = System.getProperty("user.dir");
+                        System.out.println("Readding from: " + currentDir + "\\dataInput.txt" );
+                        computeMACFromFile(handler.getValue("pw"), currentDir + "\\dataInput.txt");
+                    } else {
+                        System.out.println("Readding from: " + handler.getValue("file"));
+                        computeMACFromFile(handler.getValue("pw"), handler.getValue("file"));
+                    }
+                    break;
+                } else {
+                    if(!handler.hasTag("pw")){
+                        System.out.println("Missing -pw");
+                    } else {
+                        computeMACFromUserInput(handler.getValue("code"), handler.getValue("pw"));
+                    }
                 }
-                String macInput = args[1];
-                computeMACFromUserInput(args);
-                break;
-            case "macFromFile":
-                if (args.length < 2) {
-                    System.out.println("Error: please provide passphrase");
-                    return;
-                } if(args.length == 2) {
-                    String currentDir = System.getProperty("user.dir");
-                    computeMACFromFile(args[1], currentDir + "\\dataInput.txt");
-                } else computeMACFromFile(args[1], args[2]);
                 break;
             case "encrypt":
-                if (args.length < 2) {
-                    System.out.println("Error: please provide passphrase");
-
-                    return;
-                }else if( args.length ==  2){ // using the default toBeEncrypted filepath.
-                    String currentDir = System.getProperty("user.dir");
-                    encryptFile(args[1], currentDir + "\\toBeEncrypted.txt");
-                } else encryptFile(args[1], args[2]);
+                if(!handler.hasTag("pw")){
+                    System.out.println("Missing -pw");
+                } else {
+                    if( !handler.hasTag("file") || handler.getValue("file").isEmpty()){
+                        String currentDir = System.getProperty("user.dir");
+                        System.out.println("Readding from: " + currentDir + "\\toBeEncrypted.txt" );
+                        encryptFile(handler.getValue("pw"), currentDir + "\\toBeEncrypted.txt");
+                    }else encryptFile(handler.getValue("pw"),handler.getValue("file") );
+                }
                 break;
             case "decrypt":
-                if (args.length < 2) {
-                    System.out.println("Error: please provide passphrase");
-                    return;
-                }else if( args.length ==  2){ // using the default toBeEncrypted filepath.
-                    String currentDir = System.getProperty("user.dir");
-                    decryptFromFile(args[1], currentDir + "\\encryptedFile.txt");
-                } else decryptFromFile(args[1], args[2]);
-
+                if(!handler.hasTag("pw")){
+                    System.out.println("Missing -pw");
+                }else {
+                    if (!handler.hasTag("file") || handler.getValue("file").isEmpty()) {
+                        String currentDir = System.getProperty("user.dir");
+                        System.out.println("Readding from: " + currentDir + "\\encryptedFile.txt");
+                        decryptFromFile(handler.getValue("pw"), currentDir + "\\encryptedFile.txt");
+                    } else decryptFromFile(handler.getValue("pw"), handler.getValue("file"));
+                }
                 break;
             default:
                 System.out.println("Invalid command.");
         }
     }
 
-    private static void computeHashFromUserInput(String[] stringArrayOfByte) {
-        byte[] byteArray = readStringArrayToByteArray(stringArrayOfByte, 1);
+    private static void computeHashFromUserInput(String byteArrayString) {
+        byte[] byteArray = readByteArrayFromString(byteArrayString);
         // Compute the hash using the Keccak algorithm
         // Parameters: key (empty string), input data byte array, output length (512 bits), customization string ("D")
         byte[] outBytes = Keccak.KMACXOF256("", byteArray, 512, "D");
@@ -122,16 +131,6 @@ public class TCSS487 {
         System.out.println(byteArrayToHexString(outBytes) + "\n");
     }
 
-    private static byte[] readStringArrayToByteArray(String[]  arr, int startIndex){
-        byte[] byteArray = new byte[arr.length-startIndex];
-        for (int i = 0; i < arr.length - startIndex; i++) {
-            // Parse the hexadecimal string and convert it to a byte
-            byteArray[i] = (byte) Integer.parseInt(arr[i+startIndex], 16);
-        }
-        System.out.println("User Input: ");
-        System.out.println(byteArrayToHexString(byteArray));
-        return byteArray;
-    }
 
     private static void computeHashFromFile(String filename) {
         try {
@@ -143,18 +142,18 @@ public class TCSS487 {
             System.out.println(byteArrayToHexString(outBytes));
 
         } catch (IOException e) {
-            System.err.println("Error reading file: Please make sure that data is stored in the right format." );
+            System.err.println(e.getMessage() );
         }
     }
 
-    private static void computeMACFromUserInput(String[] stringArrayOfByte) {
-        byte[] byteArray = readStringArrayToByteArray(stringArrayOfByte, 2);
+    private static void computeMACFromUserInput(String byteArrayString, String pw) {
+        byte[] byteArray = readByteArrayFromString(byteArrayString);
 
-        System.out.println("User passphrase input: " + stringArrayOfByte[1]);
+        System.out.println("User passphrase input: " + pw);
 
         // Compute the hash using the Keccak algorithm
         // Parameters: passphrase, input data byte array, output length (512 bits), customization string ("D")
-        byte[] outBytes = Keccak.KMACXOF256(stringArrayOfByte[1], byteArray, 512, "D");
+        byte[] outBytes = Keccak.KMACXOF256(pw, byteArray, 512, "D");
 
         // Print the hashed output in hexadecimal format
         System.out.println("Hashed Output:");
@@ -178,13 +177,7 @@ public class TCSS487 {
         }
     }
 
-    private static void encryptFile(String inputFile) {
-        // Implement file encryption
-    }
 
-    private static void decryptFile(String encryptedFile) {
-        // Implement file decryption
-    }
     /**
      * Encrypts a given data file symmetrically under a given passphrase
      * and stores the cryptogram in an encrypted file.
@@ -256,25 +249,9 @@ public class TCSS487 {
 
     /**
      * Prompts the user for a file path and returns the corresponding file if the path exists.
-     * @param scanner the scanner used to scan the user's file path.
+     * @param bytes the scanner used to scan the user's file path.
      * @return the File object from the path.
      */
-    public static File getInputFile(Scanner scanner) {
-        File inputFile;
-        boolean legit = false;
-
-        do {
-            System.out.println("Please enter the full path of the file: ");
-            inputFile = new File(scanner.nextLine());
-            if (inputFile.exists()) {
-                legit = true;
-            } else {
-                System.out.println("ERROR: File doesn't exist.");
-            }
-        } while (!legit);
-
-        return inputFile;
-    }
 
     private static String byteArrayToHexString(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
@@ -322,5 +299,30 @@ public class TCSS487 {
         try (FileWriter writer = new FileWriter(currentDir + "/encryptedFile.txt")) {
             writer.write(byteArray);
         }
+    }
+
+    /**
+     *
+     * Parses a string containing hexadecimal values separated by whitespace
+     * and converts it into a byte array.
+     * @author An Ho
+     * @param s The string containing hexadecimal values.
+     * @return The byte array representing the hexadecimal values.
+     */
+    private static byte[] readByteArrayFromString(String s) {
+        // Split the input string by whitespace to get individual hexadecimal values
+        String[] hexValues = s.split("\\s+");
+
+        // Create a byte array to store the parsed hexadecimal values
+        byte[] byteArray = new byte[hexValues.length];
+        if (s.isEmpty()) return new byte[0];;
+        // Iterate through each hexadecimal value
+        for (int i = 0; i < hexValues.length; i++) {
+            // Parse the hexadecimal string and convert it to a byte
+            byteArray[i] = (byte) Integer.parseInt(hexValues[i], 16);
+        }
+
+        // Return the byte array
+        return byteArray;
     }
 }
