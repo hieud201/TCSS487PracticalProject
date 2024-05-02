@@ -42,7 +42,13 @@ public class TCSS487 {
                 computeMAC(macInput);
                 break;
             case "macFromFile":
-                computeMACFromFile(args[1], args[2]);
+                if (args.length < 2) {
+                    System.out.println("Usage: java Main macUserInput <input>");
+                    return;
+                } if(args.length == 2) {
+                    String currentDir = System.getProperty("user.dir");
+                    computeMACFromFile(args[1], currentDir + "\\dataInput.txt");
+                } else computeMACFromFile(args[1], args[2]);
                 break;
             case "encrypt":
                 if (args.length < 2) {
