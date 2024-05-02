@@ -55,7 +55,7 @@ public class Main {
     /**
      * Allows the user to choose between computing a plain cryptographic hash
      * from user input or from a file, and executes the corresponding method.
-     * Author: An Ho
+     * @author An Ho
      */
     private static void computePlainHashOption() {
         // Initialize a Scanner object to read user input
@@ -83,7 +83,7 @@ public class Main {
     }
     /**
      * Computes a plain hash from input data provided as a byte array in hexadecimal format.
-     * Author: An Ho
+     * @author An Ho
      */
     private static void computePlainHashFromInput() {
         // Prompt the user to enter data as a byte array in hexadecimal format
@@ -102,7 +102,7 @@ public class Main {
     }
     /**
      * Reads data from a file, computes its hash, and prints the result.
-     * Author: An Ho
+     * @author An Ho
      */
     private static void computePlainHashFromFile() {
         // Define the file path from which data will be read
@@ -131,7 +131,7 @@ public class Main {
     /**
      * Allows the user to choose between computing an authentication tag (MAC)
      * from user input or from a file, and executes the corresponding method.
-     * Author: An Ho
+     * @author An Ho
      */
     private static void computeAuthMACOption() {
         // Initialize a Scanner object to read user input
@@ -163,7 +163,7 @@ public class Main {
 
     /**
      * Computes an authentication tag (MAC) from user input data and passphrase.
-     * Author: An Ho
+     * @author An Ho
      */
     private static void computeAuthMACFromInput() {
         // Prompt the user to enter data as a byte array in hexadecimal format
@@ -192,7 +192,7 @@ public class Main {
     /**
      * Computes an authentication tag (MAC) from data read from a file and a passphrase.
      * @throws IOException if the file can't be read
-     * Author: An Ho
+     * @author An Ho
      */
     private static void computeAuthMACFromFile() {
         // Define the file path from which data will be read
@@ -229,6 +229,7 @@ public class Main {
      * Reference: NIST Special Publication 800-185.
      *
      * @throws IOException if the file can't be read
+     * @author Hieu Doan
      * 
      */
     private static void encryptFile() throws IOException {
@@ -274,6 +275,7 @@ public class Main {
     /**
      * Allows the user to choose between decrypting a symmetric cryptogram
      * from user input or from a file, and executes the corresponding method.
+     * @author Hieu Doan
      */
     private static void decryptOption() {
         // Initialize a Scanner object to read user input
@@ -303,87 +305,115 @@ public class Main {
     }
 
 
+    /**
+     * Decrypts a symmetric cryptogram from user input using a passphrase.
+     * @author Hieu Doan
+     */
     private static void decryptFromInput() {
+        // Initialize Scanner object to read user input
         Scanner scanner = new Scanner(System.in);
         byte[] decryptedByteArray;
 
+        // Prompt the user to enter the passphrase used for encryption
         System.out.println("Please enter the passphrase used to encrypt: ");
         String pw = scanner.nextLine();
+
+        // Prompt the user to input the cryptogram in hexadecimal string format
         System.out.println("Please input a cryptogram in hex string format in only one line:");
         String inputString = scanner.nextLine();
+        // Convert the input string to a byte array
         byte[] inputByteArray = readByteArrayFromString(inputString);
 
+        // Extract z, c, and t from the inputByteArray
         byte[] z = new byte[64];
-        //retrieve 512-bit random number contacted to beginning of cryptogram
         System.arraycopy(inputByteArray, 0, z, 0, 64);
-
-        //retrieve the encrypted message
         byte[] c = Arrays.copyOfRange(inputByteArray, 64, inputByteArray.length - 64);
-
-        //retrieve tag that was appended to cryptogram
         byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - 64, inputByteArray.length);
 
-        //squeeze bits from sponge
+        // Derive ke and ka from z and the passphrase
         byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(z, pw.getBytes())), "".getBytes(), 1024, "S");
         byte[] ke = new byte[64];
         System.arraycopy(keka,0,ke,0,64);
         byte[] ka = new byte[64];
         System.arraycopy(keka, 64,ka,0,64);
 
+        // Decrypt the cryptogram using ke
         byte[] m = Keccak.KMACXOF256(new String(ke), "".getBytes(), (c.length * 8), "SKE");
         m = Keccak.xorBytes(m, c);
 
+        // Recalculate tag tPrime using ka and m
         byte[] tPrime = Keccak.KMACXOF256(new String(ka), m, 512, "SKA");
 
+        // Compare calculated tag tPrime with original tag t
         if (Arrays.equals(t, tPrime)) {
+            // If tags match, set decryptedByteArray to m
             decryptedByteArray = m;
             System.out.println("\nDecrypted output:\n" + new String(decryptedByteArray, StandardCharsets.UTF_8));
-        }
-        else {
+        } else {
+            // If tags don't match, prompt the user to retry decryption
             System.out.println("Tags didn't match!");
             decryptFromInput();
         }
     }
 
+    /**
+     * Decrypts a symmetric cryptogram from a file using a passphrase.
+     * @author Hieu Doan
+     */
     private static void decryptFromFile() {
-        byte[] decryptedByteArray = new byte[0];
-        Scanner scanner = new Scanner(System.in);
-        String filePath = "src/encryptedFile.txt";
-        System.out.println("Please enter the passphrase used to encrypt: ");
-        String pw = scanner.nextLine();
+    // Initialize decryptedByteArray to store the decrypted byte array
+    byte[] decryptedByteArray = new byte[0];
+    
+    // Create a Scanner object to read user input
+    Scanner scanner = new Scanner(System.in);
+    
+    // Define the file path from which to read the encrypted data
+    String filePath = "src/encryptedFile.txt";
+    
+    // Prompt the user to enter the passphrase used for encryption
+    System.out.println("Please enter the passphrase used to encrypt: ");
+    String pw = scanner.nextLine();
 
-        try {
-            File inputFile = new File(filePath);
-            byte[] inputByteArray = readByteArrayFromFile(inputFile.getPath());
+    try {
+        // Read the encrypted data from the file into inputByteArray
+        File inputFile = new File(filePath);
+        byte[] inputByteArray = readByteArrayFromFile(inputFile.getPath());
 
-            byte[] z = new byte[64];
-            System.arraycopy(inputByteArray, 0, z, 0, 64);
-            byte[] c = Arrays.copyOfRange(inputByteArray, 64, inputByteArray.length - 64);
-            byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - 64, inputByteArray.length);
+        // Extract z, c, and t from the inputByteArray
+        byte[] z = new byte[64];
+        System.arraycopy(inputByteArray, 0, z, 0, 64);
+        byte[] c = Arrays.copyOfRange(inputByteArray, 64, inputByteArray.length - 64);
+        byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - 64, inputByteArray.length);
 
-            byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(z, pw.getBytes())), "".getBytes(), 1024, "S");
-            byte[] ke = new byte[64];
-            System.arraycopy(keka,0,ke,0,64);
-            byte[] ka = new byte[64];
-            System.arraycopy(keka, 64,ka,0,64);
+        // Derive ke and ka from z and the passphrase
+        byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(z, pw.getBytes())), "".getBytes(), 1024, "S");
+        byte[] ke = new byte[64];
+        System.arraycopy(keka,0,ke,0,64);
+        byte[] ka = new byte[64];
+        System.arraycopy(keka, 64,ka,0,64);
 
-            byte[] m = Keccak.KMACXOF256(new String(ke), "".getBytes(), (c.length * 8), "SKE");
-            m = Keccak.xorBytes(m, c);
+        // Decrypt the cryptogram using ke
+        byte[] m = Keccak.KMACXOF256(new String(ke), "".getBytes(), (c.length * 8), "SKE");
+        m = Keccak.xorBytes(m, c);
 
-            byte[] tPrime = Keccak.KMACXOF256(new String(ka), m, 512, "SKA");
+        // Recalculate tag tPrime using ka and m
+        byte[] tPrime = Keccak.KMACXOF256(new String(ka), m, 512, "SKA");
 
-            if (Arrays.equals(t, tPrime)) {
-                decryptedByteArray = m;
-                System.out.println("\nDecrypted output:\n" + new String(decryptedByteArray, StandardCharsets.UTF_8));
-            }
-            else {
-                System.out.println("Tags didn't match!");
-                decryptFromFile();
-            }
-        } catch (IOException e) {
-            System.err.println("Error reading file: " + e.getMessage());
+        // Compare calculated tag tPrime with original tag t
+        if (Arrays.equals(t, tPrime)) {
+            // If tags match, set decryptedByteArray to m
+            decryptedByteArray = m;
+            System.out.println("\nDecrypted output:\n" + new String(decryptedByteArray, StandardCharsets.UTF_8));
+        } else {
+            // If tags don't match, prompt the user to retry decryption
+            System.out.println("Tags didn't match!");
+            decryptFromFile();
         }
+    } catch (IOException e) {
+        // Handle file reading errors
+        System.err.println("Error reading file: " + e.getMessage());
     }
+}
 
     /************************************************************
      *                      Helper Methods                      *
@@ -391,6 +421,7 @@ public class Main {
 
     /**
      * Prompts the user for a file path and returns the corresponding file if the path exists.
+     * @author An Ho
      * @param scanner the scanner used to scan the user's file path.
      * @return the File object from the path.
      */
@@ -415,7 +446,7 @@ public class Main {
      * Converts a byte array to a hexadecimal string representation.
      * Each byte is converted to its hexadecimal equivalent and concatenated with a space.
      * Example: [0x01, 0xA8, 0x02] -> "01 A8 02 "
-     *
+     * @author An Ho
      * @param bytes The byte array to be converted.
      * @return The hexadecimal string representation of the byte array.
      */
@@ -435,9 +466,9 @@ public class Main {
     }
 
     /**
-     * Author: An Ho
-     * Reads a string input from the user.
      *
+     * Reads a string input from the user.
+     * @author An Ho
      * @param prompt The prompt message to display to the user.
      * @return The string input provided by the user.
      * 
@@ -454,9 +485,9 @@ public class Main {
     }
 
     /**
-     * Author: An Ho
-     * Reads a byte array input from the user in hexadecimal format.
      *
+     * Reads a byte array input from the user in hexadecimal format.
+     * @author An Ho
      * @param prompt The prompt message to display to the user.
      * @return The byte array input provided by the user.
      */
@@ -504,10 +535,10 @@ public class Main {
 
 
     /**
-     * Author: An Ho
+     * 
      * Parses a string containing hexadecimal values separated by whitespace
      * and converts it into a byte array.
-     *
+     * @author An Ho
      * @param s The string containing hexadecimal values.
      * @return The byte array representing the hexadecimal values.
      */
@@ -528,9 +559,9 @@ public class Main {
         return byteArray;
     }
     /**
-     * Author: An Ho
+     * 
      * Reads the contents of a file and returns it as a string.
-     *
+     * @author An Ho
      * @param theFile The file to read.
      * @return The contents of the file as a string.
      */
@@ -550,12 +581,13 @@ public class Main {
 
 
     /**
-     * Author: An Ho
+     * 
      * Reads a byte array from a file containing hexadecimal values separated by whitespace.
      *
      * @param filePath The path of the file to read.
      * @return The byte array representing the hexadecimal values from the file.
      * @throws IOException if an I/O error occurs while reading the file.
+     * @author An Ho
      */
     private static byte[] readByteArrayFromFile(String filePath) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
@@ -579,11 +611,12 @@ public class Main {
     }
 
 /**
- * Author: An Ho
+ * 
  * Writes a byte array representation to a file.
  *
  * @param byteArray The byte array representation to write to the file.
  * @throws IOException if an I/O error occurs while writing to the file.
+ * @author An Ho
  */
 private static void writeToFile(String byteArray) throws IOException {
     // Use try-with-resources to ensure the FileWriter is properly closed
