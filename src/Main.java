@@ -13,11 +13,6 @@ public class Main {
      */
     private static final SecureRandom z = new SecureRandom();
 
-    /**
-     * Resulted cryptogram from encryption.
-     */
-    private static byte[] previousCryptogram;
-
     public static void main(String[] args) throws IOException {
 
         Scanner scanner = new Scanner(System.in);
@@ -38,7 +33,7 @@ public class Main {
                 case 1 -> computePlainHashOption();
                 case 2 -> computeAuthMACOption();
                 case 3 -> encryptFile();
-                case 4 -> decryptFile(decryptPreviousEncryptOrGivenCryptogram(scanner));
+                case 4 -> decryptOption();
                 case 5 -> {
                     System.out.println("Exiting CryptoApp. Goodbye!");
                     System.exit(0);
@@ -144,152 +139,139 @@ public class Main {
         }
     }
 
-    private static void encryptFile() {
-        Scanner userIn = new Scanner(System.in);
-        File theFile = getUserInputFile(userIn);
-        String theFileContent = fileToString(theFile);
-        byte[] byteArray = theFileContent.getBytes();
-        String pw = readStringInput("Enter passphrase  (as a character string): ");
-        System.out.println("User passphrase input: " + pw);
-        previousCryptogram = encryptKMAC(byteArray, pw);
-        System.out.println(byteArrayToHexString(previousCryptogram));
-    }
-
     /**
-     * Helper method that contains the logical work of the encryption service.
-     * @param m the byte array to be encrypted.
-     * @param pw the passphrase given by the user.
-     * @return an encrypted version of the given byte array.
+     * Encrypts a given data file symmetrically under a given passphrase
+     * and stores the cryptogram in an encrypted file.
+     * Ref NIST Special Publication 800-185.
+     *
+     * @throws IOException if the file can't be read
      */
-    private static byte[] encryptKMAC(byte[] m, String pw) {
-        byte[] rand = new byte[64];
-        z.nextBytes(rand);
+    private static void encryptFile() throws IOException {
+        Scanner userIn = new Scanner(System.in);
+        File inputFile = getInputFile(userIn);
+        String fileContent = fileToString(inputFile);
+        byte[] byteArray = fileContent.getBytes();
+        String pw = readStringInput("Enter a passphrase (as a character string): ");
 
-        //squeeze bits from sponge
-        byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(rand, pw.getBytes())), "".getBytes(), 1024, "S");
+        byte[] z = new byte[64];
+        Main.z.nextBytes(z);
+
+        byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(z, pw.getBytes())), "".getBytes(), 1024, "S");
         byte[] ke = new byte[64];
         System.arraycopy(keka,0,ke,0,64);
         byte[] ka = new byte[64];
         System.arraycopy(keka, 64,ka,0,64);
 
-        byte[] c = Keccak.KMACXOF256(new String(ke), "".getBytes(), (m.length * 8), "SKE");
-        c =  Keccak.xorBytes(c, m);
-        byte[] t = Keccak.KMACXOF256(new String(ka), m, 512, "SKA");
+        byte[] c = Keccak.KMACXOF256(new String(ke), "".getBytes(), (byteArray.length * 8), "SKE");
+        c =  Keccak.xorBytes(c, byteArray);
 
-        return Keccak.concatByteArrays(Keccak.concatByteArrays(rand, c), t);
+        byte[] t = Keccak.KMACXOF256(new String(ka), byteArray, 512, "SKA");
+
+        byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(z, c), t);
+        writeToFile(byteArrayToHexString(previousCryptogram));
+
+        System.out.println("Cryptogram:\n" + byteArrayToHexString(previousCryptogram));
     }
 
-    /**
-     * Decrypts a symmetric cryptogram under a given passphrase.
-     *
-     * @throws IOException if an I/O error with reading from a file occurs during the decryption process.
-     * @author Hieu Doan
-     * Largely inspired from
-     * <a href="https://github.com/skweston/SHA3/blob/master/Driver.java#L388">
-     * https://github.com/skweston/SHA3/blob/master/Driver.java#L388
-     * </a>
-     */
-    private static void decryptFile(String input) throws IOException {
-        Scanner userIn = new Scanner(System.in);
-        String thePassphrase;
-        byte[] decryptedByteArray = new byte[0];
-        System.out.println("Please enter a passphrase used to encrypt: ");
-        thePassphrase = userIn.nextLine();
-        if (input.equals("prev encrypt")) { //input from file
-            decryptedByteArray = decryptKMAC(previousCryptogram, thePassphrase);
-        } else if (input.equals("user input")) { //input from command line
-            System.out.println("\nPlease input a cryptogram in hex string format in one line (spaces okay, NO NEW LINES!!!!!): \n");
-            String userString = userIn.nextLine();
-            byte[] hexBytes = hexStringToBytes(userString);
-            decryptedByteArray = decryptKMAC(hexBytes, thePassphrase);
-        }
-        System.out.println("\nDecryption in Hex format:\n" + byteArrayToHexString(decryptedByteArray));
-        System.out.println("\nDecryption in String format:\n" + new String (decryptedByteArray, StandardCharsets.UTF_8));
-    }
+    private static void decryptOption() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("\nChoose an option:");
+        System.out.println("1. Decrypt a symmetric cryptogram from user input");
+        System.out.println("2. Decrypt a symmetric cryptogram from given file (src/encryptedFile.txt). This option requires prior encryption.");
+        System.out.print("Enter your choice: ");
+        int choice = scanner.nextInt();
+        scanner.nextLine(); // Consume newline
 
-    private static String decryptPreviousEncryptOrGivenCryptogram(Scanner userIn) {
-        String menuPrompt = """
-                What format would you like your input:
-                    1) Most recently encrypted (requires use of encryption service first).
-                    2) User inputted cryptogram
-                """;
-        int response = getIntInRange(userIn, menuPrompt, 1, 2);
-        if (response == 1) {
-            return "prev encrypt";
-        } else {
-            return "user input";
+        switch (choice) {
+            case 1 -> decryptFromInput();
+            case 2 -> decryptFromFile();
+            default -> {
+                System.out.println("Invalid choice. Please try again.");
+                System.out.println("===============================================");
+                decryptOption();
+            }
         }
     }
 
-    /**
-     * Checks to see whether the user inputted an int or not.
-     * @param userIn is the scanner that will be used for user input.
-     * @param prompt is the prompt that the user is answering.
-     * @return the user inputted int.
-     */
-    public static int getInt(final Scanner userIn, final String prompt) {
-        System.out.println(prompt);
-        while (!userIn.hasNextInt()) {
-            userIn.next();
-            System.out.println("Invalid input. Please enter an integer.");
-            System.out.println(prompt);
-        }
-        return userIn.nextInt();
-    }
+    private static void decryptFromInput() {
+        Scanner scanner = new Scanner(System.in);
+        byte[] decryptedByteArray;
 
-    /**
-     * Checks whether the user inputted integer is within the desired range.
-     * This will keep running until the user inputs an integer that is in the desired range.
-     * @param userIn is the scanner that will be used for user input.
-     * @param prompt is the prompt that the user is answering from.
-     * @param minMenuInput the low end of the options on the menu.
-     * @param maxMenuInput the high end of the options on the menu.
-     * @return the user inputted int that is within the desired range.
-     */
-    public static int getIntInRange(final Scanner userIn, final String prompt,
-                                    final int minMenuInput, final int maxMenuInput) {
-        int input = getInt(userIn, prompt);
-        while (input < minMenuInput || input > maxMenuInput) {
-            System.out.print("Input out of range.\nPlease enter a number that corresponds to a menu prompt.\n");
-            input = getInt(userIn, prompt);
-        }
-        return input;
-    }
+        System.out.println("Please enter the passphrase used to encrypt: ");
+        String pw = scanner.nextLine();
+        System.out.println("Please input a cryptogram in hex string format in only one line:");
+        String inputString = scanner.nextLine();
+        byte[] inputByteArray = readByteArrayFromString(inputString);
 
-    /**
-     * Helper method that contains the logical work of the decryption service.
-     * @param cryptogram the symmetric cryptogram to be decrypted.
-     * @param pw the passphrase given by the user.
-     * @return a decrypted version of the given cryptogram.
-     */
-    private static byte[] decryptKMAC(byte[] cryptogram, String pw) {
-        byte[] rand = new byte[64];
+        byte[] z = new byte[64];
         //retrieve 512-bit random number contacted to beginning of cryptogram
-        System.arraycopy(cryptogram, 0, rand, 0, 64);
+        System.arraycopy(inputByteArray, 0, z, 0, 64);
 
         //retrieve the encrypted message
-        byte[] in = Arrays.copyOfRange(cryptogram, 64, cryptogram.length - 64);
+        byte[] c = Arrays.copyOfRange(inputByteArray, 64, inputByteArray.length - 64);
 
         //retrieve tag that was appended to cryptogram
-        byte[] tag = Arrays.copyOfRange(cryptogram, cryptogram.length - 64, cryptogram.length);
+        byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - 64, inputByteArray.length);
 
         //squeeze bits from sponge
-        byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(rand, pw.getBytes())), "".getBytes(), 1024, "S");
+        byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(z, pw.getBytes())), "".getBytes(), 1024, "S");
         byte[] ke = new byte[64];
         System.arraycopy(keka,0,ke,0,64);
         byte[] ka = new byte[64];
         System.arraycopy(keka, 64,ka,0,64);
 
-        byte[] m = Keccak.KMACXOF256(new String(ke), "".getBytes(), (in.length*  8), "SKE");
-        m = Keccak.xorBytes(m, in);
+        byte[] m = Keccak.KMACXOF256(new String(ke), "".getBytes(), (c.length * 8), "SKE");
+        m = Keccak.xorBytes(m, c);
 
         byte[] tPrime = Keccak.KMACXOF256(new String(ka), m, 512, "SKA");
 
-        if (Arrays.equals(tag, tPrime)) {
-            return m;
+        if (Arrays.equals(t, tPrime)) {
+            decryptedByteArray = m;
+            System.out.println("\nDecrypted output:\n" + new String(decryptedByteArray, StandardCharsets.UTF_8));
         }
         else {
-            throw new IllegalArgumentException("Tags didn't match");
+            System.out.println("Tags didn't match!");
+            decryptFromInput();
+        }
+    }
+
+    private static void decryptFromFile() {
+        byte[] decryptedByteArray = new byte[0];
+        Scanner scanner = new Scanner(System.in);
+        String filePath = "src/encryptedFile.txt";
+        System.out.println("Please enter the passphrase used to encrypt: ");
+        String pw = scanner.nextLine();
+
+        try {
+            File inputFile = new File(filePath);
+            byte[] inputByteArray = readByteArrayFromFile(inputFile.getPath());
+
+            byte[] z = new byte[64];
+            System.arraycopy(inputByteArray, 0, z, 0, 64);
+            byte[] c = Arrays.copyOfRange(inputByteArray, 64, inputByteArray.length - 64);
+            byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - 64, inputByteArray.length);
+
+            byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(z, pw.getBytes())), "".getBytes(), 1024, "S");
+            byte[] ke = new byte[64];
+            System.arraycopy(keka,0,ke,0,64);
+            byte[] ka = new byte[64];
+            System.arraycopy(keka, 64,ka,0,64);
+
+            byte[] m = Keccak.KMACXOF256(new String(ke), "".getBytes(), (c.length * 8), "SKE");
+            m = Keccak.xorBytes(m, c);
+
+            byte[] tPrime = Keccak.KMACXOF256(new String(ka), m, 512, "SKA");
+
+            if (Arrays.equals(t, tPrime)) {
+                decryptedByteArray = m;
+                System.out.println("\nDecrypted output:\n" + new String(decryptedByteArray, StandardCharsets.UTF_8));
+            }
+            else {
+                System.out.println("Tags didn't match!");
+                decryptFromFile();
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading file: " + e.getMessage());
         }
     }
 
@@ -298,49 +280,25 @@ public class Main {
      ************************************************************/
 
     /**
-     * Converts the content of a file to String format.
-     * @param theFile the File object to be converted.
-     * @return the converted String object.
+     * Prompts the user for a file path and returns the corresponding file if the path exists.
+     * @param scanner the scanner used to scan the user's file path.
+     * @return the File object from the path.
      */
-    public static String fileToString(final File theFile) {
-        String theString = null;
-        try {
-            theString = new String(Files.readAllBytes(theFile.getAbsoluteFile().toPath()));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return theString;
-    }
+    public static File getInputFile(Scanner scanner) {
+        File inputFile;
+        boolean legit = false;
 
-    /**
-     * Asks the user for a file path.
-     * If correctly verified, the method will create a File object from that path.
-     * @param userIn the scanner used when asking the user for the file path.
-     * @return the File object created from the verified path.
-     */
-    public static File getUserInputFile(final Scanner userIn) {
-        File theFile;
-        boolean pathVerify = false;
-        String filePrompt = "Please enter the full path of the file:";
         do {
-            System.out.println(filePrompt);
-            theFile = new File(userIn.nextLine());
-            if (theFile.exists()) {
-                pathVerify = true;
+            System.out.println("Please enter the full path of the file: ");
+            inputFile = new File(scanner.nextLine());
+            if (inputFile.exists()) {
+                legit = true;
             } else {
                 System.out.println("ERROR: File doesn't exist.");
             }
-        } while (!pathVerify);
+        } while (!legit);
 
-        return theFile;
-    }
-
-    private static String byteArrayToBinary(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0'));
-        }
-        return sb.toString();
+        return inputFile;
     }
 
     private static String byteArrayToHexString(byte[] bytes) {
@@ -349,25 +307,6 @@ public class Main {
             sb.append(String.format("%02X ", b));
         }
         return sb.toString();
-    }
-
-    /**
-     * Takes a String representation of Hex values and coverts it to a byte array.
-     * <a href="https://www.tutorialspoint.com/convert-hex-string-to-byte-array-in-java#:~:text=To%20convert%20hex%20string%20to,length%20of%20the%20byte%20array">
-     *     https://www.tutorialspoint.com/convert-hex-string-to-byte-array-in-java
-     * </a>.
-     * @param s String of hex values
-     * @return byte array
-     */
-    public static byte[] hexStringToBytes(String s) {
-        s = s.replaceAll("\\s", "");
-        byte[] val = new byte[s.length()/2];
-        for (int i = 0; i < val.length; i++) {
-            int index = i * 2;
-            int j = Integer.parseInt(s.substring(index,index + 2), 16);
-            val[i] = (byte) j;
-        }
-        return val;
     }
 
     private static String readStringInput(String prompt) {
@@ -412,7 +351,17 @@ public class Main {
         return byteArray;
     }
 
-    public static byte[] readByteArrayFromFile(String filePath) throws IOException {
+    public static String fileToString(final File theFile) {
+        String theString = null;
+        try {
+            theString = new String(Files.readAllBytes(theFile.getAbsoluteFile().toPath()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return theString;
+    }
+
+    private static byte[] readByteArrayFromFile(String filePath) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line = reader.readLine();
             if (line == null) {
@@ -424,6 +373,12 @@ public class Main {
                 byteArray[i] = (byte) Integer.parseInt(hexValues[i], 16);
             }
             return byteArray;
+        }
+    }
+
+    private static void writeToFile(String byteArray) throws IOException {
+        try (FileWriter writer = new FileWriter("src/encryptedFile.txt")) {
+            writer.write(byteArray);
         }
     }
 }
