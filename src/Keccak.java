@@ -1,7 +1,7 @@
 import java.util.Arrays;
 
 /**
- * Implemention of KMACXOF256
+ * Implementation of KMACXOF256
  * @author Tin Phu, Hieu Doan, An Ho
  * @version 1.0.0
  */
@@ -60,14 +60,6 @@ public class Keccak {
         newX = concatByteArrays(newX, right_encodeZERO);
         return cSHAKE256(newX, l,  "KMAC", s);
     }
-    private static String byteArrayToHexString(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02X ", b));
-
-        }
-        return sb.toString();
-    }
 
 
     /**
@@ -111,7 +103,7 @@ public class Keccak {
 
 
 
-        long[] stcml = new long[25]; //we combined 5x5 Slice into an array instead of Arr[5][5]
+        long[] stcml = new long[25];
         //FIPS PUB 202, Algorithm 8, step 6:
         for (long[] st : states) {
             stcml = keccakp(xorStates(stcml, st), 1600, 24); //  bitLen is 1600 and 24 rounds based on section 5.2 in FIPS PUB 202
@@ -162,7 +154,7 @@ public class Keccak {
      *             (((uint64_t) v[4]) << 32) | (((uint64_t) v[5]) << 40) |
      *             (((uint64_t) v[6]) << 48) | (((uint64_t) v[7]) << 56);
      *     }
-     * @author Tin Phu, mjosaarinen
+     * @author Tin Phu
      * @param in the input bytes
      * @param cap the capacity
      * @return a two dimensional array states.
@@ -335,7 +327,7 @@ public class Keccak {
 
     /**
      *  left_encode func in sec. 2.3.1 NIST SP 800-185
-     *  P.s: đã xào by Tin.
+     * @author Tin Phu
      * @param len the integer to encode
      * @return a byte array: see NIST SP 800-185 sec. 2.3.1
      */
