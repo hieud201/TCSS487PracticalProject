@@ -15,7 +15,7 @@ public class CommandLineArgsHandler {
 
     /**
      * Simply parse -tag with a string after it as its value.
-     * in special case, -code array of string is its value.
+     * in special case, for -code, the string array after the tag is its value.
      * @param args
      */
     private void parseArgs(String[] args) {
