@@ -71,8 +71,9 @@ public class TCSS487 {
                         computeHashFromFile(filePath);
                     } else computeHashFromFile(handler.getValue("file"));
                     break;
-                } else
-                    computeHashFromUserInput(handler.getValue("code"));
+                } else if(!handler.hasTag("code")) {
+                    System.out.println("Missing -code");
+                } else computeHashFromUserInput(handler.getValue("code"));
                 break;
             case "mac":
                 if(handler.hasTag("file")){
@@ -91,7 +92,10 @@ public class TCSS487 {
                 } else {
                     if(!handler.hasTag("pw")){
                         System.out.println("Missing -pw");
-                    } else {
+                    } else if(!handler.hasTag("code")){
+                        System.out.println("Missing -code");
+                    } else
+                    {
                         computeMACFromUserInput(handler.getValue("code"), handler.getValue("pw"));
                     }
                 }
