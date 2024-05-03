@@ -122,8 +122,8 @@ public class Keccak {
 
     /**
      * ref sec 5.1 FIPS 202
-     * The implementation strictly follows <a href="https://keccak.team/keccak_bits_and_bytes.html">https://keccak.team/keccak_bits_and_bytes.html</a>
-     * The delimited suffix of cSHAKE256: <a href="https://keccak.team/keccak_specs_summary.html">https://keccak.team/keccak_specs_summary.html</a>
+     * The implementation strictly follows https://keccak.team/keccak_bits_and_bytes.html
+     * The delimited suffix of cSHAKE256: https://keccak.team/keccak_specs_summary.html
      * @author Tin Phu
      * @param x the bytes array to pad
      * @param rate  in terms of bit length
@@ -144,7 +144,7 @@ public class Keccak {
 
     /**
      * The Keccack-p permutation performs a series of Round functions on the state array (ref section 3.3 NIST FIPS 202).
-     * Strictly follows <a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
+     * Strictly follows Algorithm 7 in NIST FIPS 202
      * @author Hieu Doan, Tin Phu
      * @param stateIn the input state, an array of 25 longs (ref FIPS 202 sec. 3.1.2)
      * @param bitLen fixed length of permuted string
@@ -153,7 +153,8 @@ public class Keccak {
      */
     private static long[] keccakp(long[] stateIn, int bitLen, int rounds) {
         long[] tempState = stateIn;
-        int l = floorLog(bitLen/25);
+        int l = floorLog(bitLen/25); // the binary logarithm of the lane size
+        // step 2 of Algorithm 7 loop.
         for (int i = 12 + 2*l - rounds; i < 12 + 2*l; i++) {
             tempState = iota(chi(rhoPhi(theta(tempState))), i); // sec 3.3 FIPS 202
         }
@@ -162,7 +163,7 @@ public class Keccak {
 
     /**
      * The theta function xors each state bit with the parities of two columns in the array (ref section 3.2.1 NIST FIPS 202).
-     * Strictly follows <a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
+     * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
      * @author Hieu Doan, Tin Phu
      * @param stateIn the input state, an array of 25 longs (ref FIPS 202 sec. 3.1.2)
      * @return the state after the theta function has been applied (array of longs)
@@ -190,7 +191,7 @@ public class Keccak {
      * The rho functions rotate the bits of each lane, and for each bit in the lane the z coordinate is
      * modified by adding the offset, modulo the lane size,
      * and the phi function rearranges the positions of the lanes (ref section 3.2.2-3 NIST FIPS 202).
-     * Strictly follows <a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
+     * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
      * @author Hieu Doan, Tin Phu
      * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
      * @return the state after applying the rho and phi function
@@ -211,6 +212,7 @@ public class Keccak {
 
     /**
      * The chi function xors each word with a function of two other words in their row (ref section 3.2.4 NIST FIPS 202).
+     * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
      * @author Tin Phu, Hieu Doan
      * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
      * @return the state after applying the chi function
@@ -228,7 +230,7 @@ public class Keccak {
 
     /**
      * Applies the round constant to the word at stateIn[0].
-     * ref. section 3.2.5 NIST FIPS 202.
+     * * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
      * @author Hieu Doan, Tin Phu
      * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
      * @return the state after the round constant has been xored with the first lane (st[0])
@@ -311,7 +313,7 @@ public class Keccak {
     /**
      * Converts a byte array to series of state arrays.
      * This strictly follows tiny_sha3.c by mjosaarinen
-     * <a href="">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
+     * https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
      * ================================================================ <br>
      * <code>
      *     for (i = 0; i < 25; i++) {
@@ -400,7 +402,8 @@ public class Keccak {
 
     /**
      * Performs a left rotation of a 64-bit long integer by a given offset.
-     *
+     * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
+     * //ROTL64(x, y) (((x) << (y)) | ((x) >> (64 - (y))))
      * @author Hieu Doan, Tin Phu
      * @param w The 64-bit long integer to be rotated.
      * @param offset The number of bits to rotate by. If the offset is negative, it will be treated as a positive value.
@@ -413,7 +416,7 @@ public class Keccak {
 
     /**
      * Computes the floor of the base-2 logarithm of an integer.
-     *
+     * For a KECCAK-p permutation, the binary logarithm of the lane size, FIPS 202 sec. 2.2
      * @author Tin Phu, Hieu Doan
      * @param n The integer value for which to compute the floor logarithm.
      * @return The floor of the base-2 logarithm of the given integer.

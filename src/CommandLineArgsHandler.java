@@ -13,6 +13,11 @@ public class CommandLineArgsHandler {
         parseArgs(args);
     }
 
+    /**
+     * Simply parse -tag with a string after it as its value.
+     * in special case, -code array of string is its value.
+     * @param args
+     */
     private void parseArgs(String[] args) {
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
