@@ -103,19 +103,19 @@ public class Keccak {
 
 
 
-        long[] stcml = new long[25];
+        long[] s = new long[25];
         //FIPS PUB 202, Algorithm 8, step 6:
-        for (long[] st : states) {
-            stcml = keccakp(xorStates(stcml, st), 1600, 24); //  bitLen is 1600 and 24 rounds based on section 5.2 in FIPS PUB 202
+        for (long[] state : states) {
+            s = keccakp(xorStates(s, state), 1600, 24); //  bitLen is 1600 and 24 rounds based on section 5.2 in FIPS PUB 202
         }
         //FIPS PUB 202, Algorithm 8, step 8 9 10 loop.
         int offset = 0;
         do {
             z = Arrays.copyOf(z, offset + rate/64);
             // //FIPS PUB 202, Algorithm 8, step 8: Let Z=Z || Truncr(S).
-            System.arraycopy(stcml, 0, z, offset, rate/64);
+            System.arraycopy(s, 0, z, offset, rate/64);
             offset += rate/64;
-            stcml = keccakp(stcml, 1600, 24);
+            s = keccakp(s, 1600, 24);
         } while (z.length*64 < d);
 
         return stateToByteArray(z, d);
@@ -210,6 +210,7 @@ public class Keccak {
 
     /**
      * The Keccack-p permutation, ref section 3.3 NIST FIPS 202.
+     * @author Hieu Doan
      * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
      * @return the state after the Keccak-p permutation has been applied
      */
@@ -231,14 +232,14 @@ public class Keccak {
      */
     private static long[] theta(long[] stateIn) {
         long[] stateOut = new long[25];
-        long[] C = new long[5];
+        long[] c = new long[5];
 
         for (int i = 0; i < 5; i++) {
-            C[i] = stateIn[i] ^ stateIn[i + 5] ^ stateIn[i + 10] ^ stateIn[i + 15] ^ stateIn[i + 20];
+            c[i] = stateIn[i] ^ stateIn[i + 5] ^ stateIn[i + 10] ^ stateIn[i + 15] ^ stateIn[i + 20];
         }
 
         for (int i = 0; i < 5; i++) {
-            long d = C[(i+4) % 5] ^ lRotWord(C[(i+1) % 5], 1);
+            long d = c[(i+4) % 5] ^ lRotWord(c[(i+1) % 5], 1);
 
             for (int j = 0; j < 5; j++) {
                 stateOut[i + 5*j] = stateIn[i + 5*j] ^ d;
@@ -271,6 +272,7 @@ public class Keccak {
     /**
      * The chi function, ref section 3.2.4 NIST FIPS 202. xors each word with
      * a function of two other words in their row.
+     * @author Hieu Doan
      * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
      * @return the state after applying the chi function
      */
@@ -288,6 +290,7 @@ public class Keccak {
     /**
      * Applies the round constant to the word at stateIn[0].
      * ref. section 3.2.5 NIST FIPS 202.
+     * @author Hieu Doan
      * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
      * @return the state after the round constant has been xored with the first lane (st[0])
      */
@@ -301,6 +304,7 @@ public class Keccak {
 
     /**
      * Pads a bit string, sec 2.3.3 NIST SP 800-185
+     * @author Tin Phu
      * @param x the bit string to pad
      * @param w the desired factor of the padding
      * @return a byte array prepended by lrEncode(w) such that it's length is an even multiple of w
@@ -315,6 +319,7 @@ public class Keccak {
 
     /**
      * The encodeString func, NIST SP 800-185 2.3.2
+     * @author Tin Phu
      * @param s the bit string to encode (as a byte array)
      * @return the bit string produced by prepending the encoding of str.length to str
      */
@@ -343,9 +348,6 @@ public class Keccak {
     }
 
 
-    /************************************************************
-     *                      Helper Methods                      *
-     ************************************************************/
     /**
      * Returns a concatenated byte array (b1 + b2) from the two input byte arrays.
      * @author Tin Phu
@@ -354,9 +356,9 @@ public class Keccak {
      * @return The concatenated byte array
      */
     public static byte[] concatByteArrays(byte[] b1, byte[] b2) {
-        byte[] mrg = Arrays.copyOf(b1, b1.length + b2.length);
-        System.arraycopy(b2, 0, mrg, b1.length, b2.length);
-        return mrg;
+        byte[] concatArray = Arrays.copyOf(b1, b1.length + b2.length);
+        System.arraycopy(b2, 0, concatArray, b1.length, b2.length);
+        return concatArray;
     }
 
     /**
@@ -405,12 +407,5 @@ public class Keccak {
         return exp;
     }
 
-    private static String byteArrayToBinary(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0'));
-        }
-        return sb.toString();
-    }
 
 }
