@@ -65,9 +65,10 @@ public class TCSS487 {
                 if(handler.hasTag("file")){
                     if (handler.getValue("file").isEmpty()) { // using default filePath: ./dataInput.txt
                         String currentDir = System.getProperty("user.dir");
-                        System.out.println("Readding from: " + currentDir + "\\dataInput.txt" );
+                        String filePath = currentDir + File.separator + "dataInput.txt";
+                        System.out.println("Readding from: " + filePath );
 
-                        computeHashFromFile(currentDir + "\\dataInput.txt");
+                        computeHashFromFile(filePath);
                     } else computeHashFromFile(handler.getValue("file"));
                     break;
                 } else
@@ -79,8 +80,9 @@ public class TCSS487 {
                         System.out.println("Missing -pw");
                     } else if(handler.getValue("file").isEmpty()) {
                         String currentDir = System.getProperty("user.dir");
-                        System.out.println("Readding from: " + currentDir + "\\dataInput.txt" );
-                        computeMACFromFile(handler.getValue("pw"), currentDir + "\\dataInput.txt");
+                        String filePath = currentDir + File.separator + "dataInput.txt";
+                        System.out.println("Readding from: " + filePath );
+                        computeMACFromFile(handler.getValue("pw"), filePath);
                     } else {
                         System.out.println("Readding from: " + handler.getValue("file"));
                         computeMACFromFile(handler.getValue("pw"), handler.getValue("file"));
@@ -100,8 +102,9 @@ public class TCSS487 {
                 } else {
                     if( !handler.hasTag("file") || handler.getValue("file").isEmpty()){
                         String currentDir = System.getProperty("user.dir");
-                        System.out.println("Readding from: " + currentDir + "\\toBeEncrypted.txt" );
-                        encryptFile(handler.getValue("pw"), currentDir + "\\toBeEncrypted.txt");
+                        String filePath = currentDir + File.separator + "toBeEncrypted.txt";
+                        System.out.println("Readding from: " + filePath );
+                        encryptFile(handler.getValue("pw"), filePath);
                     }else encryptFile(handler.getValue("pw"),handler.getValue("file") );
                 }
                 break;
@@ -111,8 +114,8 @@ public class TCSS487 {
                 }else {
                     if (!handler.hasTag("file") || handler.getValue("file").isEmpty()) {
                         String currentDir = System.getProperty("user.dir");
-                        System.out.println("Readding from: " + currentDir + "\\encryptedFile.txt");
-                        decryptFromFile(handler.getValue("pw"), currentDir + "\\encryptedFile.txt");
+                        String filePath = currentDir + File.separator + "encryptedFile.txt";
+                        decryptFromFile(handler.getValue("pw"), filePath);
                     } else decryptFromFile(handler.getValue("pw"), handler.getValue("file"));
                 }
                 break;
