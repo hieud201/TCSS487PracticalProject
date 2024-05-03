@@ -128,59 +128,106 @@ public class TCSS487 {
         }
     }
 
+    /**
+     * Computes a hash from user input given as a byte array string.
+     *
+     * @param byteArrayString The byte array string provided by the user.
+     * @author An Ho
+     */
     private static void computeHashFromUserInput(String byteArrayString) {
+        // Convert the byte array string to a byte array
         byte[] byteArray = readByteArrayFromString(byteArrayString);
+        
         // Compute the hash using the Keccak algorithm
         // Parameters: key (empty string), input data byte array, output length (512 bits), customization string ("D")
         byte[] outBytes = Keccak.KMACXOF256("", byteArray, 512, "D");
+        
         // Print the hashed output in hexadecimal format
         System.out.println("Hashed Output:");
         System.out.println(byteArrayToHexString(outBytes) + "\n");
     }
 
 
+
+    /**
+     * Computes a hash from data read from a file.
+     * @author An Ho
+     * @param filename The name of the file containing data for hashing.
+     */
     private static void computeHashFromFile(String filename) {
         try {
+            // Read the byte array from the specified file
             byte[] byteArray = readByteArrayFromFile(filename);
+            
+            // Print the byte array read from the file in hexadecimal format
             System.out.println("Byte array read from file: \n" + byteArrayToHexString(byteArray));
+            
+            // Compute the hash using the Keccak algorithm
+            // Parameters: key (empty string), input data byte array, output length (512 bits), customization string ("D")
             byte[] outBytes = Keccak.KMACXOF256("", byteArray, 512, "D");
+            
+            // Print the hashed output in hexadecimal format
             System.out.println("Hashed Output:");
-
             System.out.println(byteArrayToHexString(outBytes));
 
         } catch (IOException e) {
-            System.err.println(e.getMessage() );
+            // Handle file reading errors by printing the error message
+            System.err.println(e.getMessage());
         }
     }
 
+
+    /**
+     * Computes a MAC (Message Authentication Code) from user input using a passphrase.
+     * @author An Ho
+     * @param byteArrayString The byte array string provided by the user.
+     * @param pw The passphrase provided by the user.
+     */
     private static void computeMACFromUserInput(String byteArrayString, String pw) {
+        // Convert the byte array string to a byte array
         byte[] byteArray = readByteArrayFromString(byteArrayString);
 
+        // Print the user passphrase input
         System.out.println("User passphrase input: " + pw);
 
-        // Compute the hash using the Keccak algorithm
+        // Compute the MAC using the Keccak algorithm
         // Parameters: passphrase, input data byte array, output length (512 bits), customization string ("D")
         byte[] outBytes = Keccak.KMACXOF256(pw, byteArray, 512, "D");
 
-        // Print the hashed output in hexadecimal format
+        // Print the MAC output in hexadecimal format
         System.out.println("Hashed Output:");
         System.out.println(byteArrayToHexString(outBytes) + "\n");
-
     }
 
+
+    /**
+     * Computes a MAC (Message Authentication Code) from data read from a file using a passphrase.
+     * @author An Ho
+     * @param pw The passphrase provided by the user.
+     * @param filePath The path of the file containing data for MAC computation.
+     */
     private static void computeMACFromFile(String pw, String filePath) {
         try {
+            // Read the byte array from the specified file
             byte[] byteArray = readByteArrayFromFile(filePath);
+            
+            // Print the byte array read from the file in hexadecimal format
             System.out.println("Byte array read from file: \n" + byteArrayToHexString(byteArray));
+            
+            // Print the user passphrase input
             System.out.println("User passphrase input: " + pw);
 
+            // Compute the MAC using the Keccak algorithm
+            // Parameters: passphrase, input data byte array, output length (512 bits), customization string ("D")
             byte[] outBytes = Keccak.KMACXOF256(pw, byteArray, 512, "D");
+            
+            // Print the MAC output in hexadecimal format
             System.out.println("Hashed Output:");
-
             System.out.println(byteArrayToHexString(outBytes));
 
         } catch (IOException e) {
-            System.err.println("Error reading file: Please make sure that data is stored in the right format." );
+            // Handle file reading errors by printing the error message
+            System.err.println("Error reading file: Please make sure that data is stored in the right format.");
         }
     }
 
@@ -189,7 +236,7 @@ public class TCSS487 {
      * Encrypts a given data file symmetrically under a given passphrase
      * and stores the cryptogram in an encrypted file.
      * Ref NIST Special Publication 800-185.
-     *
+     * @author An Ho
      * @throws IOException if the file can't be read
      */
     private static void encryptFile(String pw, String filePath) throws IOException {
@@ -217,6 +264,15 @@ public class TCSS487 {
         System.out.println("Cryptogram:\n" + byteArrayToHexString(previousCryptogram));
     }
 
+    
+    
+    
+    /**
+     * Decrypts data from a file using the provided passphrase.
+     * @author Hieu Doan
+     * @param pw The passphrase used for decryption.
+     * @param filePath The path of the file containing the encrypted data.
+     */
     private static void decryptFromFile(String pw, String filePath) {
         byte[] decryptedByteArray = new byte[0];
 
@@ -268,41 +324,84 @@ public class TCSS487 {
         return sb.toString();
     }
 
+    /**
+     * Reads the content of a file specified by the given file path and returns it as a single string.
+     *
+     * @param filePath The path of the file to read from.
+     * @return The content of the file as a single string, or null if an error occurs.
+     */
     private static String readStringFromFile(String filePath) {
+        // StringBuilder to store the content of the file
         StringBuilder contentBuilder = new StringBuilder();
         try {
+            // Create a File object with the specified file path
             File file = new File(filePath);
+            
+            // Create a BufferedReader to read from the file
             BufferedReader reader = new BufferedReader(new FileReader(file));
+            
+            // Read each line from the file and append it to the StringBuilder
             String line;
             while ((line = reader.readLine()) != null) {
                 contentBuilder.append(line).append(System.lineSeparator());
             }
+            
+            // Close the reader
             reader.close();
         } catch (IOException e) {
-            System.err.println("Error reading file: Please make sure that data is stored in the right format." );
-            return null;
+            // Handle file reading errors by printing the error message
+            System.err.println("Error reading file: Please make sure that data is stored in the right format.");
+            return null; // Return null if an error occurs
         }
+        
+        // Return the content of the file as a single string
         return contentBuilder.toString();
     }
-
+    /**
+     * Reads a byte array from a file specified by the given file path.
+     *
+     * @param filePath The path of the file to read from.
+     * @return The byte array read from the file.
+     * @throws IOException If an I/O error occurs while reading the file.
+     */
     private static byte[] readByteArrayFromFile(String filePath) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            // Read the first line from the file
             String line = reader.readLine();
+            
+            // Check if the line is empty or null
             if (line == null || line.trim().isEmpty()) {
+                // Return an empty byte array if the line is empty or null
                 return new byte[0];
             }
+            
+            // Split the line into hexadecimal values
             String[] hexValues = line.trim().split("\\s+");
+            
+            // Create a byte array to store the converted hexadecimal values
             byte[] byteArray = new byte[hexValues.length];
+            
+            // Convert each hexadecimal string to a byte and store it in the byte array
             for (int i = 0; i < hexValues.length; i++) {
                 byteArray[i] = (byte) Integer.parseInt(hexValues[i], 16);
             }
+            
+            // Return the byte array read from the file
             return byteArray;
         }
     }
 
+    /**
+     * Writes the given byte array to a file named "encryptedFile.txt".
+     * @author An Ho
+     * @param byteArray The byte array to be written to the file.
+     * @throws IOException If an I/O error occurs while writing to the file.
+     */
     private static void writeToFile(String byteArray) throws IOException {
+        // Get the current directory path
         String currentDir = System.getProperty("user.dir");
 
+        // Write the byte array to the file named "encryptedFile.txt" in the current directory
         try (FileWriter writer = new FileWriter(currentDir + "/encryptedFile.txt")) {
             writer.write(byteArray);
         }
