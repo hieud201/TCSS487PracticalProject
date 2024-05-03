@@ -1,14 +1,14 @@
 import java.util.Arrays;
 
 /**
- * Implementation of KMACXOF256
+ * Implementation of KMACXOF256.
  * @author Tin Phu, Hieu Doan, An Ho
  * @version 1.0.0
  */
 public class Keccak {
-
-    /* Round constants
-     *  ref. https://keccak.team/keccak_specs_summary.html
+    /**
+     * Round constants <br>
+     * ref. <a href="https://keccak.team/keccak_specs_summary.html">https://keccak.team/keccak_specs_summary.html</a>
      */
     private static final long[] roundConstants = {
             0x0000000000000001L, 0x0000000000008082L, 0x800000000000808aL,
@@ -21,28 +21,28 @@ public class Keccak {
             0x8000000000008080L, 0x0000000080000001L, 0x8000000080008008L
     };
 
-    /*
-     * Rotation offsets
-     * ref. https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
+    /**
+     * Rotation offsets <br>
+     * ref. <a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
      */
     private static final int[] rotationOffsets = {
             1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14,
             27, 41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44
     };
 
-    /*
-     * The position for each word with respective to the lane shifting in the pi function.
-     * ref. https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
+    /**
+     * The position for each word with respective to the lane shifting in the pi function. <br>
+     * ref. <a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
      */
     private static final int[] piLane = {
             10, 7,  11, 17, 18, 3, 5, 16, 8,  21, 24, 4,
             15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6,  1
     };
 
-
     /**
      * The Keccak Message Authentication with extensible output, ref NIST SP 800-185 sec 4.3.1
-     * @Author Tin Phu
+     *
+     * @author Tin Phu
      * @param k the key as a string
      * @param x the input bytes
      * @param l the desired bit length
@@ -61,10 +61,10 @@ public class Keccak {
         return cSHAKE256(newX, l,  "KMAC", s);
     }
 
-
     /**
      * cSHAKE func ref sec 3.3 NIST SP 800-185
-     * skip SHAKE256 because in case of KMACXOF256 n is always "KMAC"
+     * skip SHAKE256 because in case of KMACXOF256 n is always "KMAC".
+     *
      * @author Tin Phu
      * @param x the main input bit string
      * @param l  an integer representing the requested output length in bits.
@@ -77,7 +77,6 @@ public class Keccak {
         newX = concatByteArrays(bytepad(newX, 136), x);
         return sponge(newX, l, 512); // The capacity is always 512 for cSHAKE256.
     }
-
 
     /**
      * The sponge function, produces an output of length bitLen based on the
@@ -122,73 +121,9 @@ public class Keccak {
     }
 
     /**
-     * Converts state arrays back to a byte array
-     * @author Tin Phu
-     * @param state the state to convert to a byte array
-     * @param bitLen the bit length of the desired output
-     * @return a byte array of length bitLen/8 corresponding to bytes of the state: state[0:bitLen/8]
-     */
-    private static byte[] stateToByteArray(long[] state, int bitLen) {
-        byte[] out = new byte[bitLen/8];
-        int i = 0;
-        while (i*64 < bitLen) {
-            long word = state[i++];
-            int fill = i*64 > bitLen ? (bitLen - (i - 1) * 64) / 8 : 8;
-            for (int b = 0; b < fill; b++) {
-                byte ubt = (byte) (word>>>(8*b) & 0xFF);
-                out[(i - 1)*8 + b] = ubt;
-            }
-        }
-        return out;
-    }
-
-    /**
-     * Converts a byte array to series of state arrays.
-     * This strictly follows tiny_sha3.c by mjosaarinen
-     * https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
-     *================================================================
-     *     for (i = 0; i < 25; i++) {
-     *         v = (uint8_t *) &st[i];
-     *         st[i] = ((uint64_t) v[0])     | (((uint64_t) v[1]) << 8) |
-     *             (((uint64_t) v[2]) << 16) | (((uint64_t) v[3]) << 24) |
-     *             (((uint64_t) v[4]) << 32) | (((uint64_t) v[5]) << 40) |
-     *             (((uint64_t) v[6]) << 48) | (((uint64_t) v[7]) << 56);
-     *     }
-     * @author Tin Phu
-     * @param in the input bytes
-     * @param cap the capacity
-     * @return a two dimensional array states.
-     */
-    private static long[][] byteArrayToStates(byte[] in, int cap) {
-        long[][] states = new long[(in.length*8)/(1600-cap)][25];
-        //System.out.println((in.length*8)/(1600-cap));
-        int offset = 0;
-        for (int i = 0; i < states.length; i++) {
-            long[] state = new long[25];
-
-            //FIPS PUB 202, Algorithm 8, step 4: Let P0, … , Pn-1 be the unique sequence of strings of length r such that P = P0 || … || Pn-1.
-            //the unique sequence of strings of length 64 bits
-            for (int j = 0; j < (1600-cap)/64; j++) {
-                //Converts the bytes  into a 64 bit word (long)
-                long word = 0L;
-                for (int z = 0; z < 8; z++) {
-                    word += (((long)in[offset + z]) & 0xff)<<(8*z);
-                }
-                state[j] = word;
-                offset += 8; // value of offset [0, 8, 16, 24, 32, 40, 48, 56]
-
-            }
-            states[i] = state;
-
-        }
-        return states;
-    }
-
-
-    /**
      * ref sec 5.1 FIPS 202
-     * The implementation strictly follows https://keccak.team/keccak_bits_and_bytes.html
-     * The delimited suffix of cSHAKE256: https://keccak.team/keccak_specs_summary.html
+     * The implementation strictly follows <a href="https://keccak.team/keccak_bits_and_bytes.html">https://keccak.team/keccak_bits_and_bytes.html</a>
+     * The delimited suffix of cSHAKE256: <a href="https://keccak.team/keccak_specs_summary.html">https://keccak.team/keccak_specs_summary.html</a>
      * @author Tin Phu
      * @param x the bytes array to pad
      * @param rate  in terms of bit length
@@ -207,12 +142,14 @@ public class Keccak {
         return paddedX;
     }
 
-
     /**
-     * The Keccack-p permutation, ref section 3.3 NIST FIPS 202.
-     * @author Hieu Doan
-     * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
-     * @return the state after the Keccak-p permutation has been applied
+     * The Keccack-p permutation performs a series of Round functions on the state array (ref section 3.3 NIST FIPS 202).
+     * Strictly follows <a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
+     * @author Hieu Doan, Tin Phu
+     * @param stateIn the input state, an array of 25 longs (ref FIPS 202 sec. 3.1.2)
+     * @param bitLen fixed length of permuted string
+     * @param rounds number of iterations to perform the round function
+     * @return the state after the Keccak-p permutation has been applied (array of longs of length bitLength)
      */
     private static long[] keccakp(long[] stateIn, int bitLen, int rounds) {
         long[] tempState = stateIn;
@@ -224,10 +161,10 @@ public class Keccak {
     }
 
     /**
-     * The theta function, ref section 3.2.1 NIST FIPS 202. xors each state bit
-     * with the parities of two columns in the array.
-     * Adapted from https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
-     * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
+     * The theta function xors each state bit with the parities of two columns in the array (ref section 3.2.1 NIST FIPS 202).
+     * Strictly follows <a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
+     * @author Hieu Doan, Tin Phu
+     * @param stateIn the input state, an array of 25 longs (ref FIPS 202 sec. 3.1.2)
      * @return the state after the theta function has been applied (array of longs)
      */
     private static long[] theta(long[] stateIn) {
@@ -250,8 +187,11 @@ public class Keccak {
     }
 
     /**
-     * The rho and phi function, ref section 3.2.2-3 NIST FIPS 202. Shifts and rearranges words.
-     * Adapted from https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
+     * The rho functions rotate the bits of each lane, and for each bit in the lane the z coordinate is
+     * modified by adding the offset, modulo the lane size,
+     * and the phi function rearranges the positions of the lanes (ref section 3.2.2-3 NIST FIPS 202).
+     * Strictly follows <a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
+     * @author Hieu Doan, Tin Phu
      * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
      * @return the state after applying the rho and phi function
      */
@@ -270,9 +210,8 @@ public class Keccak {
     }
 
     /**
-     * The chi function, ref section 3.2.4 NIST FIPS 202. xors each word with
-     * a function of two other words in their row.
-     * @author Hieu Doan
+     * The chi function xors each word with a function of two other words in their row (ref section 3.2.4 NIST FIPS 202).
+     * @author Tin Phu, Hieu Doan
      * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
      * @return the state after applying the chi function
      */
@@ -290,7 +229,7 @@ public class Keccak {
     /**
      * Applies the round constant to the word at stateIn[0].
      * ref. section 3.2.5 NIST FIPS 202.
-     * @author Hieu Doan
+     * @author Hieu Doan, Tin Phu
      * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
      * @return the state after the round constant has been xored with the first lane (st[0])
      */
@@ -298,9 +237,6 @@ public class Keccak {
         stateIn[0] ^= roundConstants[round];
         return stateIn;
     }
-
-
-
 
     /**
      * Pads a bit string, sec 2.3.3 NIST SP 800-185
@@ -347,6 +283,75 @@ public class Keccak {
         return encoding;
     }
 
+    /************************************************************
+     *                      Helper Methods                      *
+     ************************************************************/
+
+    /**
+     * Converts state arrays back to a byte array
+     * @author Tin Phu
+     * @param state the state to convert to a byte array
+     * @param bitLen the bit length of the desired output
+     * @return a byte array of length bitLen/8 corresponding to bytes of the state: state[0:bitLen/8]
+     */
+    private static byte[] stateToByteArray(long[] state, int bitLen) {
+        byte[] out = new byte[bitLen/8];
+        int i = 0;
+        while (i*64 < bitLen) {
+            long word = state[i++];
+            int fill = i*64 > bitLen ? (bitLen - (i - 1) * 64) / 8 : 8;
+            for (int b = 0; b < fill; b++) {
+                byte ubt = (byte) (word>>>(8*b) & 0xFF);
+                out[(i - 1)*8 + b] = ubt;
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Converts a byte array to series of state arrays.
+     * This strictly follows tiny_sha3.c by mjosaarinen
+     * <a href="">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
+     * ================================================================ <br>
+     * <code>
+     *     for (i = 0; i < 25; i++) {
+     *         v = (uint8_t *) &st[i];
+     *         st[i] = ((uint64_t) v[0])     | (((uint64_t) v[1]) << 8) |
+     *             (((uint64_t) v[2]) << 16) | (((uint64_t) v[3]) << 24) |
+     *             (((uint64_t) v[4]) << 32) | (((uint64_t) v[5]) << 40) |
+     *             (((uint64_t) v[6]) << 48) | (((uint64_t) v[7]) << 56);
+     *     }
+     * </code>
+     *
+     * @author Tin Phu
+     * @param in the input bytes
+     * @param cap the capacity
+     * @return a two-dimensional array states.
+     */
+    private static long[][] byteArrayToStates(byte[] in, int cap) {
+        long[][] states = new long[(in.length*8)/(1600-cap)][25];
+        //System.out.println((in.length*8)/(1600-cap));
+        int offset = 0;
+        for (int i = 0; i < states.length; i++) {
+            long[] state = new long[25];
+
+            //FIPS PUB 202, Algorithm 8, step 4: Let P0, … , Pn-1 be the unique sequence of strings of length r such that P = P0 || … || Pn-1.
+            //the unique sequence of strings of length 64 bits
+            for (int j = 0; j < (1600-cap)/64; j++) {
+                //Converts the bytes  into a 64 bit word (long)
+                long word = 0L;
+                for (int z = 0; z < 8; z++) {
+                    word += (((long)in[offset + z]) & 0xff)<<(8*z);
+                }
+                state[j] = word;
+                offset += 8; // value of offset [0, 8, 16, 24, 32, 40, 48, 56]
+
+            }
+            states[i] = state;
+
+        }
+        return states;
+    }
 
     /**
      * Returns a concatenated byte array (b1 + b2) from the two input byte arrays.
@@ -393,11 +398,26 @@ public class Keccak {
         return res;
     }
 
+    /**
+     * Performs a left rotation of a 64-bit long integer by a given offset.
+     *
+     * @author Hieu Doan, Tin Phu
+     * @param w The 64-bit long integer to be rotated.
+     * @param offset The number of bits to rotate by. If the offset is negative, it will be treated as a positive value.
+     * @return The result of left rotating the given long integer by the specified offset.
+     */
     private static long lRotWord(long w, int offset) {
         int ofs = offset % 64;
         return w << ofs | (w >>>(Long.SIZE - ofs));
     }
 
+    /**
+     * Computes the floor of the base-2 logarithm of an integer.
+     *
+     * @author Tin Phu, Hieu Doan
+     * @param n The integer value for which to compute the floor logarithm.
+     * @return The floor of the base-2 logarithm of the given integer.
+     */
     private static int floorLog(int n) {
         int exp = -1;
         while (n > 0) {
@@ -406,6 +426,4 @@ public class Keccak {
         }
         return exp;
     }
-
-
 }
