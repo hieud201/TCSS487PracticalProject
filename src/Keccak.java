@@ -144,7 +144,8 @@ public class Keccak {
 
     /**
      * The Keccack-p permutation performs a series of Round functions on the state array (ref section 3.3 NIST FIPS 202).
-     * Strictly follows Algorithm 7 in NIST FIPS 202
+     * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
+     * which is provided by the professor.
      * @author Hieu Doan, Tin Phu
      * @param stateIn the input state, an array of 25 longs (ref FIPS 202 sec. 3.1.2)
      * @param bitLen fixed length of permuted string
@@ -152,93 +153,60 @@ public class Keccak {
      * @return the state after the Keccak-p permutation has been applied (array of longs of length bitLength)
      */
     private static long[] keccakp(long[] stateIn, int bitLen, int rounds) {
-        long[] tempState = stateIn;
-        int l = floorLog(bitLen/25); // the binary logarithm of the lane size
+        long[] st = stateIn;
+        int l = FloorLogTwo(bitLen/25); // the binary logarithm of the lane size
         // step 2 of Algorithm 7 loop.
         for (int i = 12 + 2*l - rounds; i < 12 + 2*l; i++) {
-            tempState = iota(chi(rhoPhi(theta(tempState))), i); // sec 3.3 FIPS 202
-        }
-        return tempState;
-    }
 
-    /**
-     * The theta function xors each state bit with the parities of two columns in the array (ref section 3.2.1 NIST FIPS 202).
-     * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
-     * @author Hieu Doan, Tin Phu
-     * @param stateIn the input state, an array of 25 longs (ref FIPS 202 sec. 3.1.2)
-     * @return the state after the theta function has been applied (array of longs)
-     */
-    private static long[] theta(long[] stateIn) {
-        long[] stateOut = new long[25];
-        long[] c = new long[5];
-
-        for (int i = 0; i < 5; i++) {
-            c[i] = stateIn[i] ^ stateIn[i + 5] ^ stateIn[i + 10] ^ stateIn[i + 15] ^ stateIn[i + 20];
-        }
-
-        for (int i = 0; i < 5; i++) {
-            long d = c[(i+4) % 5] ^ lRotWord(c[(i+1) % 5], 1);
+            //theta
+            long[] thetaResult = new long[25];
+            long[] bc = new long[5];
 
             for (int j = 0; j < 5; j++) {
-                stateOut[i + 5*j] = stateIn[i + 5*j] ^ d;
+                bc[j] = st[j] ^ st[j + 5] ^ st[j + 10] ^ st[j + 15] ^ st[j + 20];
             }
-        }
 
-        return stateOut;
-    }
-
-    /**
-     * The rho functions rotate the bits of each lane, and for each bit in the lane the z coordinate is
-     * modified by adding the offset, modulo the lane size,
-     * and the phi function rearranges the positions of the lanes (ref section 3.2.2-3 NIST FIPS 202).
-     * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
-     * @author Hieu Doan, Tin Phu
-     * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
-     * @return the state after applying the rho and phi function
-     */
-    private static long[] rhoPhi(long[] stateIn) {
-        long[] stateOut = new long[25];
-        stateOut[0] = stateIn[0]; // first value needs to be copied
-        long t = stateIn[1], temp;
-        int ind;
-        for (int i = 0; i < 24; i++) {
-            ind = piLane[i];
-            temp = stateIn[ind];
-            stateOut[ind] = lRotWord(t, rotationOffsets[i]);
-            t = temp;
-        }
-        return stateOut;
-    }
-
-    /**
-     * The chi function xors each word with a function of two other words in their row (ref section 3.2.4 NIST FIPS 202).
-     * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
-     * @author Tin Phu, Hieu Doan
-     * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
-     * @return the state after applying the chi function
-     */
-    private static long[] chi(long[] stateIn) {
-        long[] stateOut = new long[25];
-        for (int i = 0; i < 5; i++) {
             for (int j = 0; j < 5; j++) {
-                long tmp = ~stateIn[(i+1) % 5 + 5*j] & stateIn[(i+2) % 5 + 5*j];
-                stateOut[i + 5*j] = stateIn[i + 5*j] ^ tmp;
+                long d = bc[(j+4) % 5] ^ rotL64(bc[(j+1) % 5], 1);
+
+                for (int k = 0; k < 5; k++) {
+                    thetaResult[j + 5*k] = st[j + 5*k] ^ d;
+                }
             }
+
+            //rhoPhi
+            long[] rhoPhiResult = new long[25];
+            rhoPhiResult[0] = thetaResult[0]; // first value needs to be copied
+            long t = thetaResult[1], temp;
+            int ind;
+            for (int j = 0; j < 24; j++) {
+                ind = piLane[j];
+                temp = thetaResult[ind];
+                rhoPhiResult[ind] = rotL64(t, rotationOffsets[j]);
+                t = temp;
+            }
+
+            //chi
+            long[] chiResult = new long[25];
+            for (int j = 0; j < 5; j++) {
+                for (int k = 0; k < 5; k++) {
+                    long tmp = ~rhoPhiResult[(j+1) % 5 + 5*k] & rhoPhiResult[(j+2) % 5 + 5*k];
+                    chiResult[j + 5*k] = rhoPhiResult[j + 5*k] ^ tmp;
+                }
+            }
+
+            //iota
+            chiResult[0] ^= roundConstants[i];
+
+            st = chiResult;
+
+
+
+
         }
-        return stateOut;
+        return st;
     }
 
-    /**
-     * Applies the round constant to the word at stateIn[0].
-     * * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
-     * @author Hieu Doan, Tin Phu
-     * @param stateIn the input state, an array of 25 longs ref FIPS 202 sec. 3.1.2
-     * @return the state after the round constant has been xored with the first lane (st[0])
-     */
-    private static long[] iota(long[] stateIn, int round) {
-        stateIn[0] ^= roundConstants[round];
-        return stateIn;
-    }
 
     /**
      * Pads a bit string, sec 2.3.3 NIST SP 800-185
@@ -289,6 +257,40 @@ public class Keccak {
      *                      Helper Methods                      *
      ************************************************************/
 
+
+
+    /**
+     * Converts a byte array to series of state arrays.
+     * @author Tin Phu
+     * @param in the input bytes
+     * @param cap the capacity
+     * @return a two-dimensional array states.
+     */
+    private static long[][] byteArrayToStates(byte[] in, int cap) {
+        long[][] states = new long[(in.length*8)/(1600-cap)][25];
+        int offset = 0;
+        for (int i = 0; i < states.length; i++) {
+            long[] state = new long[25];
+
+            //FIPS PUB 202, Algorithm 8, step 4: Let P0, … , Pn-1 be the unique sequence of strings of length r such that P = P0 || … || Pn-1.
+            //the unique sequence of strings of length 64 bits
+
+            for (int j = 0; j < (1600-cap)/64; j++) {
+                //Converts the bytes  into a 64 bit word (long)
+                long word = 0L;
+                for (int b = 0; b < 8; b++) {
+                    word += (((long)in[offset + b]) & 0xff)<<(8*b);
+                }
+                state[j] = word;
+                offset += 8; // value of offset [0, 8, 16, 24, 32, 40, 48, 56]
+
+            }
+            states[i] = state;
+
+        }
+        return states;
+    }
+
     /**
      * Converts state arrays back to a byte array
      * @author Tin Phu
@@ -308,51 +310,6 @@ public class Keccak {
             }
         }
         return out;
-    }
-
-    /**
-     * Converts a byte array to series of state arrays.
-     * This strictly follows tiny_sha3.c by mjosaarinen
-     * https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
-     * ================================================================ <br>
-     * <code>
-     *     for (i = 0; i < 25; i++) {
-     *         v = (uint8_t *) &st[i];
-     *         st[i] = ((uint64_t) v[0])     | (((uint64_t) v[1]) << 8) |
-     *             (((uint64_t) v[2]) << 16) | (((uint64_t) v[3]) << 24) |
-     *             (((uint64_t) v[4]) << 32) | (((uint64_t) v[5]) << 40) |
-     *             (((uint64_t) v[6]) << 48) | (((uint64_t) v[7]) << 56);
-     *     }
-     * </code>
-     *
-     * @author Tin Phu
-     * @param in the input bytes
-     * @param cap the capacity
-     * @return a two-dimensional array states.
-     */
-    private static long[][] byteArrayToStates(byte[] in, int cap) {
-        long[][] states = new long[(in.length*8)/(1600-cap)][25];
-        //System.out.println((in.length*8)/(1600-cap));
-        int offset = 0;
-        for (int i = 0; i < states.length; i++) {
-            long[] state = new long[25];
-
-            //FIPS PUB 202, Algorithm 8, step 4: Let P0, … , Pn-1 be the unique sequence of strings of length r such that P = P0 || … || Pn-1.
-            //the unique sequence of strings of length 64 bits
-            for (int j = 0; j < (1600-cap)/64; j++) {
-                //Converts the bytes  into a 64 bit word (long)
-                long word = 0L;
-                for (int z = 0; z < 8; z++) {
-                    word += (((long)in[offset + z]) & 0xff)<<(8*z);
-                }
-                state[j] = word;
-                offset += 8; // value of offset [0, 8, 16, 24, 32, 40, 48, 56]
-
-            }
-            states[i] = state;
-
-        }
-        return states;
     }
 
     /**
@@ -404,29 +361,31 @@ public class Keccak {
      * Performs a left rotation of a 64-bit long integer by a given offset.
      * Strictly follows https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
      * //ROTL64(x, y) (((x) << (y)) | ((x) >> (64 - (y))))
-     * @author Hieu Doan, Tin Phu
-     * @param w The 64-bit long integer to be rotated.
-     * @param offset The number of bits to rotate by. If the offset is negative, it will be treated as a positive value.
+     * @author Hieu Doan
+     * @param x 64-bit long integer to be rotated.
+     * @param y The number of bits to rotate by. If the offset is negative, it will be treated as a positive value.
      * @return The result of left rotating the given long integer by the specified offset.
      */
-    private static long lRotWord(long w, int offset) {
-        int ofs = offset % 64;
-        return w << ofs | (w >>>(Long.SIZE - ofs));
+    private static long rotL64(long x, int y) {
+        return (x << y) | (x >>> (64 - y));
     }
 
     /**
      * Computes the floor of the base-2 logarithm of an integer.
      * For a KECCAK-p permutation, the binary logarithm of the lane size, FIPS 202 sec. 2.2
-     * @author Tin Phu, Hieu Doan
+     * @author Hieu Doan
      * @param n The integer value for which to compute the floor logarithm.
      * @return The floor of the base-2 logarithm of the given integer.
      */
-    private static int floorLog(int n) {
-        int exp = -1;
-        while (n > 0) {
-            n = n>>>1;
-            exp++;
+    private static int FloorLogTwo(int n) {
+        if (n <= 0) {
+            throw new IllegalArgumentException("Input must be a positive integer");
         }
-        return exp;
+        int exponent = 0;
+        while (n > 1) {
+            n >>>= 1;
+            exponent++;
+        }
+        return exponent;
     }
 }
