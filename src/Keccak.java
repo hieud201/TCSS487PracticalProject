@@ -8,7 +8,7 @@ import java.util.Arrays;
 public class Keccak {
     /**
      * Round constants <br>
-     * ref. <a href="https://keccak.team/keccak_specs_summary.html">https://keccak.team/keccak_specs_summary.html</a>
+     * ref. https://keccak.team/keccak_specs_summary.html
      */
     private static final long[] roundConstants = {
             0x0000000000000001L, 0x0000000000008082L, 0x800000000000808aL,
@@ -23,7 +23,7 @@ public class Keccak {
 
     /**
      * Rotation offsets <br>
-     * ref. <a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
+     * ref.https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
      */
     private static final int[] rotationOffsets = {
             1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14,
@@ -32,7 +32,7 @@ public class Keccak {
 
     /**
      * The position for each word with respective to the lane shifting in the pi function. <br>
-     * ref. <a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c">https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c</a>
+     * ref. https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c
      */
     private static final int[] piLane = {
             10, 7,  11, 17, 18, 3, 5, 16, 8,  21, 24, 4,
@@ -169,8 +169,8 @@ public class Keccak {
             for (int j = 0; j < 5; j++) {
                 long d = bc[(j+4) % 5] ^ rotL64(bc[(j+1) % 5], 1);
 
-                for (int k = 0; k < 5; k++) {
-                    thetaResult[j + 5*k] = st[j + 5*k] ^ d;
+                for (int k = 0; k < 25; k+=5) {
+                    thetaResult[j + k] = st[j + k] ^ d;
                 }
             }
 
@@ -197,12 +197,7 @@ public class Keccak {
 
             //iota
             chiResult[0] ^= roundConstants[i];
-
             st = chiResult;
-
-
-
-
         }
         return st;
     }
@@ -260,7 +255,8 @@ public class Keccak {
 
 
     /**
-     * Converts a byte array to series of state arrays.
+     * Converts a byte array to series of 64 bit word (long) state arrays.
+     * Inspired https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
      * @author Tin Phu
      * @param in the input bytes
      * @param cap the capacity
@@ -271,20 +267,25 @@ public class Keccak {
         int offset = 0;
         for (int i = 0; i < states.length; i++) {
             long[] state = new long[25];
-
-            //FIPS PUB 202, Algorithm 8, step 4: Let P0, … , Pn-1 be the unique sequence of strings of length r such that P = P0 || … || Pn-1.
-            //the unique sequence of strings of length 64 bits
-
+            // not All long[25] of the state is filled.
+            // (1600-cap)/64 is a constant of 17 in case of KMACXOF256
             for (int j = 0; j < (1600-cap)/64; j++) {
                 //Converts the bytes  into a 64 bit word (long)
                 long word = 0L;
-                for (int b = 0; b < 8; b++) {
-                    word += (((long)in[offset + b]) & 0xff)<<(8*b);
-                }
+                //directly inspired by ./sha3.c by mjosaarinen
+                word = ((long) (in[offset] & 0xFF))
+                        | ((long) (in[offset + 1] & 0xFF) << 8)
+                        | ((long) (in[offset + 2] & 0xFF) << 16)
+                        | ((long) (in[offset + 3] & 0xFF) << 24)
+                        | ((long) (in[offset + 4] & 0xFF) << 32)
+                        | ((long) (in[offset + 5] & 0xFF) << 40)
+                        | ((long) (in[offset + 6] & 0xFF) << 48)
+                        | ((long) (in[offset + 7] & 0xFF) << 56);
                 state[j] = word;
-                offset += 8; // value of offset [0, 8, 16, 24, 32, 40, 48, 56]
+                offset += 8;
 
             }
+            //System.out.println(Arrays.toString(state));
             states[i] = state;
 
         }
@@ -293,6 +294,7 @@ public class Keccak {
 
     /**
      * Converts state arrays back to a byte array
+     * Inspired from  https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c by mjosaarinen
      * @author Tin Phu
      * @param state the state to convert to a byte array
      * @param bitLen the bit length of the desired output
@@ -302,12 +304,22 @@ public class Keccak {
         byte[] out = new byte[bitLen/8];
         int i = 0;
         while (i*64 < bitLen) {
+            //the current 64-bit word
             long word = state[i++];
-            int fill = i*64 > bitLen ? (bitLen - (i - 1) * 64) / 8 : 8;
-            for (int b = 0; b < fill; b++) {
-                byte ubt = (byte) (word>>>(8*b) & 0xFF);
-                out[(i - 1)*8 + b] = ubt;
-            }
+            byte[] v = new byte[8];
+            // Extract each byte from the word and store it in the byte array
+            v[0] = (byte) (word & 0xFF);
+            v[1] = (byte) ((word >> 8) & 0xFF);
+            v[2] = (byte) ((word >> 16) & 0xFF);
+            v[3] = (byte) ((word >> 24) & 0xFF);
+            v[4] = (byte) ((word >> 32) & 0xFF);
+            v[5] = (byte) ((word >> 40) & 0xFF);
+            v[6] = (byte) ((word >> 48) & 0xFF);
+            v[7] = (byte) ((word >> 56) & 0xFF);
+            // Calculate the number of bytes to copy to the output array
+            // in last iteration, we need to consider the remain bits which is smaller than 8.
+            int fill = (i * 64 > bitLen) ? (bitLen - (i - 1) * 64) / 8 : 8;
+            System.arraycopy(v, 0, out, (i - 1) * 8, fill);
         }
         return out;
     }
