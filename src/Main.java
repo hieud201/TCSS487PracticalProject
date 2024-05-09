@@ -219,27 +219,29 @@ public class Main {
         byte[] byteArray = fileContent.getBytes();
 
         byte[] z = new byte[64];
-        byte[] ke = new byte[64];
-        byte[] ka = new byte[64];
+
 
         Main.random.nextBytes(z); // z <- Random(512)
 
         // (ke || ka) <- KMACXOF256(z || pw, “”, 1024, “S”)
         byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(z, pw.getBytes())), "".getBytes(), 1024, "S");
-        System.arraycopy(keka,0,ke,0,64);
-        System.arraycopy(keka, 64,ka,0,64);
+        //System.out.println(keka.length);
+        int halfLength = keka.length / 2;
+        byte[] ke = Arrays.copyOfRange(keka, 0, halfLength);
+        byte[] ka = Arrays.copyOfRange(keka, halfLength, keka.length);
 
         // c <- KMACXOF256(ke, “”, |m|, “SKE”) XOR m
         byte[] c = Keccak.KMACXOF256(new String(ke), "".getBytes(), (byteArray.length * 8), "SKE");
         c =  Keccak.xorBytes(c, byteArray);
 
+
         // t <- KMACXOF256(ka, m, 512, “SKA”)
         byte[] t = Keccak.KMACXOF256(new String(ka), byteArray, 512, "SKA");
-
         // writing the cryptogram (z,c,t) to a file and printing it
         byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(z, c), t);
         writeToFile(byteArrayToHexString(previousCryptogram));
         System.out.println("Cryptogram:\n" + byteArrayToHexString(previousCryptogram));
+
     }
 
     /**
@@ -257,17 +259,23 @@ public class Main {
         try {
             // parsing the necessary components of the cryptogram
             byte[] inputByteArray = readByteArrayFromFile(filePath);
-            byte[] z = new byte[64];
-            System.arraycopy(inputByteArray, 0, z, 0, 64);
-            byte[] c = Arrays.copyOfRange(inputByteArray, 64, inputByteArray.length - 64);
-            byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - 64, inputByteArray.length);
+
+            //extract z
+            byte[] z = Arrays.copyOfRange(inputByteArray,0, 64);
+            int ctLength = (inputByteArray.length - z.length)/2;
+
+            //extract t
+            byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - 64, inputByteArray.length );
+
+            //extract c, know that c bytes = inputByteArray.length - (z.length + t.length)
+            // z.length and t.length are always a constant of 64 bytes.
+            // 64bytes||c.byte||64bytes
+            byte[] c = Arrays.copyOfRange(inputByteArray, z.length  , inputByteArray.length - 64);
 
             // (ke || ka) <- KMACXOF256(z || pw, “”, 1024, “S”)
             byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(z, pw.getBytes())), "".getBytes(), 1024, "S");
-            byte[] ke = new byte[64];
-            System.arraycopy(keka,0,ke,0,64);
-            byte[] ka = new byte[64];
-            System.arraycopy(keka, 64,ka,0,64);
+            byte[] ke = Arrays.copyOfRange(keka,0, keka.length/2);
+            byte[] ka = Arrays.copyOfRange(keka,keka.length/2, keka.length);
 
             // m <- KMACXOF256(ke, “”, |c|, “SKE”) XOR c
             byte[] m = Keccak.KMACXOF256(new String(ke), "".getBytes(), (c.length * 8), "SKE");
@@ -281,7 +289,7 @@ public class Main {
                 decryptedByteArray = m;
                 System.out.println("\nDecrypted output:\n" + new String(decryptedByteArray, StandardCharsets.UTF_8));
             } else {
-                System.out.println("Tags didn't match!");
+                System.out.println("Fail to decrypt!");
             }
         } catch (IOException e) {
             System.err.println("Error reading file: " + e.getMessage());
