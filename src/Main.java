@@ -10,7 +10,7 @@ import java.util.Arrays;
 /**
  *  First, type in command <code>javac Main.java</code> to compile the file at its current dir. <br>
  *                            SERVICES: <br>
- * ========================================================= <br>
+ * ========================PART 1============================ <br>
  * COMPUTE A PLAIN CRYPTOGRAPHIC HASH (KMACXOF256) <br><br>
  *
  * Compute a plain cryptographic hash from user input: <br>
@@ -32,16 +32,51 @@ import java.util.Arrays;
  * 	        <code>java Main mac -pw passwords -file C:\Users\xx\xx</code> <br>
  * ========================================================= <br>
  * ENCRYPT A FILE SYMMETRICALLY <br><br>
+ *
  * 	    Computing from the default file (./toBeEncrypted.txt): <br>
  *          <code>java Main encrypt -pw passwords</code> <br><br>
  *      Computing from a pathFile: <br>
  * 	        <code>java Main encrypt -pw passwords -file C:\Users\xx\xx</code> <br>
  * ========================================================= <br>
  * DECRYPT A SYMMETRIC CRYPTOGRAM <br><br>
+ *
  * 		Decrypt from the default file (./encryptedFile.txt): <br>
  * 			<code>java Main decrypt -pw passwords</code> <br><br>
  * 		Decrypt from a pathFile: <br>
  * 			<code>java Main decrypt -pw passwords -file C:\Users\xx\xx</code>
+ * ========================PART 2============================ <br>
+ * GENERATE AN ELLIPTIC KEY PAIR <br><br>
+ *
+ *      Generate key pair from user-input passwords: <br>
+ *  		<code>java Main generate -pw passwords</code> <br><br>
+ *  	Encrypt key pair from user-input passwords: <br>
+ *  		<code>java Main encrypt -kp keypair -pw passwords</code>
+ * ========================================================= <br>
+ *  ENCRYPT A FILE ASYMMETRICALLY <br><br>
+ *
+ *      Encrypt from default file under user-input key pair: <br>
+ *      	<code>java Main encrypt -kp keypair </code> <br><br>
+ *      Encrypt from a pathFile under user-input key pair: <br>
+ *          <code>java Main encrypt -kp keypair -file C:\Users\xx\xx</code>
+ *   	Encrypt from user inputs under user-input key pair: <br>
+ *   		<code>java Main encrypt -kp keypair</code>
+ * ========================================================= <br>
+ * DECRYPT A FILE ASYMMETRICALLY <br><br>
+ *
+ *      Decrypt a given elliptic-encrypted file from user-input passwords: <br>
+ *          <code>java Main decrypt -pw passwords -efile C:\Users\xx\xx</code>
+ * ========================================================= <br>
+ * SIGN A FILE <br><br>
+ *      Sign a given file from user-input passwords: <br>
+ *          <code>java Main sign -pw passwords -file C:\Users\xx\xx</code>
+ *      Sign user-input texts from user-input passwords: <br>
+ *          <code>java Main sign -pw passwords -text texts</code>
+ * ========================================================= <br>
+ * VERIFY A FILE <br><br>
+ *      Verify a given data file and signature file under given key file: <br>
+ *          <code>java Main verify -file C:\Users\xx\xx -sfile C:\Users\xx\xx -kfile C:\Users\xx\xx</code>
+ *      Verify user-input texts and signature file under given key file: <br>
+ *          <code>java Main verify -text text -sfile C:\Users\xx\xx -kfile C:\Users\xx\xx</code>
  */
 public class Main {
     /**
@@ -128,6 +163,23 @@ public class Main {
                     } else decryptFromFile(handler.getValue("pw"), handler.getValue("file"));
                 }
             }
+
+            case "generate" -> {
+                if (!handler.hasTag("pw")) {
+                    System.out.println("Missing -pw");
+                } else {
+                    //TODO: Handle key pair generation
+                }
+            }
+
+            case "sign" -> {
+
+            }
+
+            case "verify" -> {
+
+            }
+
             default -> System.out.println("Invalid command.");
         }
     }
