@@ -348,6 +348,26 @@ public class Main {
         }
     }
 
+    private static void generateKeyPair(String pw) {
+
+    }
+
+    private static void signFromFile(String pw, String dataFilePath) {
+
+    }
+
+    private static void signFromUserInput(String pw, String byteArrayString) {
+
+    }
+
+    private static void verifyFromFile(String dataFilePath, String signatureFilePath, String keyFilePath) {
+
+    }
+
+    private static void verifyFromUserInput(String byteArrayString, String signatureFilePath, String keyFilePath) {
+
+    }
+
     /************************************************************
      *                      Helper Methods                      *
      ************************************************************/
