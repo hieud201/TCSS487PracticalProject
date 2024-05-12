@@ -224,7 +224,7 @@ public class Keccak {
      * @param s the bit string to encode (as a byte array)
      * @return the bit string produced by prepending the encoding of str.length to str
      */
-    private static byte[] encode_string(byte[] s) {
+    public static byte[] encode_string(byte[] s) {
         byte[] len = left_encode(s.length* 8L); // bitwise length encoding
         byte[] out = Arrays.copyOf(len, len.length + s.length);
         System.arraycopy(s, 0, out, len.length, s.length);
