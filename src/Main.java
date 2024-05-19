@@ -368,6 +368,66 @@ public class Main {
         }
     }
 
+    // /**
+	//  * Generates a digital signature from the message and private key.
+	//  * @param m The message to be signed.
+	//  * @param pw The private key.
+	//  * @return A byte array containing the generated digital signature.
+	//  */
+	// private static byte[] signatureGenerator(byte[] m,String pw){
+        
+	// 	BigInteger s = new BigInteger(Keccak.KMACXOF256(pw, "".getBytes(), 448, "SK"));
+	// 	s = s.multiply(BigInteger.valueOf(4));
+
+	// 	BigInteger k = new BigInteger(Keccak.KMACXOF256(pw, m, 448, "N").getData());
+	// 	k = k.multiply(BigInteger.valueOf(4));
+
+	// 	Point U = Point.multiply(Point.G, k);
+		
+	// 	BigInteger h = new BigInteger(Keccak.KMACXOF256(U.getX().toByteArray(), m, 448, "T").getData());
+	// 	BigInteger z = k.subtract(h.multiply(s)).mod(Point.r);
+
+	// 	return Keccak.concatByteArrays(h.toByteArray(), z.toByteArray());
+	// }
+
+    // /**
+	//  * Verify a digital signature without receiving the private key used to sign.
+	//  * @param hz The digital signature as provided. 
+	//  * @param m The data signed by digital signature.
+	//  * @param V A point on E521 generated using the private key.
+	//  * @return true if the signature can be verified; false otherwise.
+	//  */
+	// private static boolean signatureVerify(byte[] hz, byte[] m, Point V) {
+
+	// 	byte[] h = new byte[64];
+	// 	byte[] z = new byte[hz.length -64];
+	// 	for (int i = 0; i < h.length; i++) {
+	// 		h[i] = hz[i];
+	// 	}
+	// 	for (int i = 0; i < z.length; i++) {
+	// 		z[i] = hz[64+i];
+	// 	}
+
+	// 	BigInteger hVal = new BigInteger(h);
+	// 	BigInteger zVal = new BigInteger(z);
+
+	// 	Point hV = Point.multiply(V, hVal);
+	// 	Point zG = Point.multiply(Point.G, zVal);
+		
+	// 	Point U = Point.pointSum(hV, zG);
+	// 	BigInteger uX = U.getX();
+	// 	byte[] test = Keccak.KMACXOF256(uX.toString(), m, 448, "T").getData();
+
+	// 	boolean ret = true;
+	// 	if (test.length != h.length) ret = false;
+	// 	for (int i = 0; i < h.length; i++) {
+	// 		if (h[i] != test[i]) ret = false;
+	// 	}
+
+	// 	return ret;
+	// }
+
+
     /************************************************************
      *                      Helper Methods                      *
      ************************************************************/
