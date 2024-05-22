@@ -35,7 +35,7 @@ public class EllipticCurve {
         GoldilocksPoint publicKey = G.multByScalar(privateKey);
         // encode the coordinates separately and concatenate them to form the hexadecimal string key.
 
-        byte[] hexPublicKey = Keccak.concatByteArrays(Keccak.encode_string(G.x.toByteArray()), Keccak.encode_string(G.y.toByteArray()));
+        byte[] hexPublicKey = Keccak.concatByteArrays(Keccak.encode_string(publicKey.x.toByteArray()), Keccak.encode_string(publicKey.y.toByteArray()));
         result[1] = hexPublicKey;
 
 
