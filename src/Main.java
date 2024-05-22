@@ -159,10 +159,18 @@ public class Main {
         byte[][] thePair = EllipticCurve.generateAsymmetricKey(pw);
         byte[] publicKey = thePair[1];
         byte[] privateKey = thePair[0];
+//        System.out.println(publicKey.toString());
+//        System.out.println(publicKey.length);
+
         try {
+            String PublicKeyString = byteArrayToHexString(publicKey);
             writeStringToFile(byteArrayToHexString(publicKey), "generatedPublicKey.txt");
+            //byte[] publicKeyByte = readByteArrayFromString(PublicKeyString);
+            //System.out.println("X: " + EllipticCurve.getPointFromPublicKey(publicKeyByte));
+
             System.out.println("Wrote Hexadecimal of Public Key to ./generatedPublicKey.txt ");
-            //encrypting privateKey before storing to generatedPrivateKey.txt
+            //Bonus points:
+            //Encrypt the private key from that pair under the given password
             writeStringToFile(byteArrayToHexString(encryptByteArrayKey(pw,privateKey)), "generatedPrivateKey.txt");
             System.out.println("Wrote Hexadecimal of Encrypted Private Key to ./generatedPrivateKey.txt ");
 

@@ -1,4 +1,6 @@
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 public class EllipticCurve {
 
@@ -26,21 +28,23 @@ public class EllipticCurve {
         //The number of points 𝑛 on any Edwards curve is always a multiple of 4, and for
         //Ed448-Goldilocks that number is 𝑛 ≔ 4𝑟
         privateKey = (BigInteger.valueOf(4)).multiply(privateKey).mod(R);
-
-        //Bonus points:
-        //Encrypt the private key from that pair under the given password
-
         result[0] = privateKey.toByteArray();
-
         GoldilocksPoint publicKey = G.multByScalar(privateKey);
-        // encode the coordinates separately and concatenate them to form the hexadecimal string key.
-
-        byte[] hexPublicKey = Keccak.concatByteArrays(Keccak.encode_string(publicKey.x.toByteArray()), Keccak.encode_string(publicKey.y.toByteArray()));
+//
+        //taking GoldilocksPoint.y as hexPublicKey
+        // because we can always find x with y.
+        byte[] hexPublicKey = publicKey.y.toByteArray();
         result[1] = hexPublicKey;
-
-
         return result;
 
     }
+
+
+
+    public static GoldilocksPoint getPointFromPublicKey(byte[] bytesKey){
+        return new GoldilocksPoint(false, new BigInteger(bytesKey));
+    }
+
+
 
 }

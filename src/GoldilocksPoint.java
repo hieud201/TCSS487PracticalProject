@@ -9,21 +9,19 @@ public class GoldilocksPoint {
     public static final GoldilocksPoint G = new GoldilocksPoint();
     
     public static void main(String[] args) {
-     // BigInteger a = new BigInteger("563400200929088152613609629378641385410102682117258566404750214022059686929583319585040850282322731241505930835997382613319689400286258");
+      BigInteger a = new BigInteger("563400200929088152613609629378641385410102682117258566404750214022059686929583319585040850282322731241505930835997382613319689400286258");
        // System.out.println(findXFromYwithLSB(, false));
-        var a = new BigInteger("-1");
+      // var a = new BigInteger("-1");
         var b = new BigInteger("45");
         var c = PRIME_P.subtract(b.modPow(BigInteger.TEN, PRIME_P));
 
         var A = new GoldilocksPoint(false, a);
-        var B = new GoldilocksPoint(false, b);
-        var C = new GoldilocksPoint(false, c);
+        var B = A.multByScalar(BigInteger.valueOf(10 + 20));;
+        var C = A.multByScalar(BigInteger.valueOf(10)).add(A.multByScalar(BigInteger.valueOf(20)));
 
-        System.out.println((A.multByScalar(BigInteger.valueOf(0))));
-
-
-        System.out.println((A.add(B)).add(C));
-       System.out.println((A.add(B.add(C))));
+        System.out.println(A.toString());
+        System.out.println(B.toString());
+        System.out.println(C.toString());
 
     }
 
