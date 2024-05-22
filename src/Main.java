@@ -171,6 +171,7 @@ public class Main {
             System.out.println("Wrote Hexadecimal of Public Key to ./generatedPublicKey.txt ");
             //Bonus points:
             //Encrypt the private key from that pair under the given password
+            //TODO: this is not implemented yet
             writeStringToFile(byteArrayToHexString(encryptByteArrayKey(pw,privateKey)), "generatedPrivateKey.txt");
             System.out.println("Wrote Hexadecimal of Encrypted Private Key to ./generatedPrivateKey.txt ");
 
@@ -180,9 +181,6 @@ public class Main {
 
 
     }
-
-
-
 
     /**
      * Computes a hash from user input given as a byte array string.
@@ -295,38 +293,54 @@ public class Main {
         System.out.println("Cryptogram:\n" + byteArrayToHexString(previousCryptogram));
 
     }
+
     /**
-     * Encrypts a given data file symmetrically under a given passphrase
-     * and stores the cryptogram in a file as z || c || t.
-     * Ref Programming Project Part 1 document.
-     *
+     * Encrypts a byte array under a Schnorr/DHIES given public key file,
+     * stores the cryptogram in a file as z || c || t,
+     * and returns that cryptogram as bytes. <br>
+     * Ref Programming Project Part 2 document.
      * @author An Ho, Hieu Doan
+     *
+     * @param byteArray the message byte array
+     * @return the cryptogram in the form of as z || c || t.
      * @throws IOException if the file can't be written to
      */
-    private static byte[] encryptByteArrayKey(String pw, byte[] byteArray) throws IOException {
-        byte[] z = new byte[64];
-        Main.random.nextBytes(z); // z <- Random(512)
+    private static byte[] encryptByteArray(byte[] byteArray) throws IOException {
+        byte[] k_temp = new byte[448/8];
+        Main.random.nextBytes(k_temp); // k <- Random(448)
+        BigInteger k = new BigInteger(k_temp);
+        k = (BigInteger.valueOf(4)).multiply(k).mod(EllipticCurve.R); // k <- 4k mod r
 
-        // (ke || ka) <- KMACXOF256(z || pw, “”, 1024, “S”)
-        byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(z, pw.getBytes())), "".getBytes(), 1024, "S");
-        //System.out.println(keka.length);
+        // converting the public key bytes to a GoldilocksPoint
+        byte[] publicKeyByte = readByteArrayFromFile("generatedPublicKey.txt");
+        GoldilocksPoint V = EllipticCurve.getPointFromPublicKey(publicKeyByte);
+
+        GoldilocksPoint W = V.multByScalar(k); // W = k*V
+        GoldilocksPoint Z = GoldilocksPoint.G.multByScalar(k); // Z = k*G
+
+        // (ka || ke) <- KMACXOF256(Wx, “”, 2×448, “PK”)
+        byte[] keka = Keccak.KMACXOF256(W.x.toString(), "".getBytes(), 2*448, "PK");
         int halfLength = keka.length / 2;
         byte[] ke = Arrays.copyOfRange(keka, 0, halfLength);
         byte[] ka = Arrays.copyOfRange(keka, halfLength, keka.length);
 
-        // c <- KMACXOF256(ke, “”, |m|, “SKE”) XOR m
-        byte[] c = Keccak.KMACXOF256(new String(ke), "".getBytes(), (byteArray.length * 8), "SKE");
+        // c <- KMACXOF256(ke, “”, |m|, “PKE”) XOR m
+        byte[] c = Keccak.KMACXOF256(new String(ke), "".getBytes(), (byteArray.length * 8), "PKE");
         c =  Keccak.xorBytes(c, byteArray);
 
+        // t <- KMACXOF256(ka, m, 448, “SKA”)
+        byte[] t = Keccak.KMACXOF256(new String(ka), byteArray, 448, "PKA");
 
-        // t <- KMACXOF256(ka, m, 512, “SKA”)
-        byte[] t = Keccak.KMACXOF256(new String(ka), byteArray, 512, "SKA");
-        // writing the cryptogram (z,c,t) to a file and printing it
-        return Keccak.concatByteArrays(Keccak.concatByteArrays(z, c), t);
+        byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(Z.y.toByteArray(), c), t);
+        writeStringToFile(byteArrayToHexString(previousCryptogram), "encryptedFile.txt");
+        System.out.println("Cryptogram:\n" + byteArrayToHexString(previousCryptogram));
+
+        return previousCryptogram;
     }
 
-
-
+    private static byte[] encryptByteArrayKey(String pw, byte[] keyBytes) {
+        
+    }
 
     /**
      * Decrypts data from a file using the provided passphrase.
@@ -449,11 +463,11 @@ public class Main {
      ************************************************************/
 
     /**
-     * Prompts the user for a file path and returns the corresponding file if the path exists.
+     * Converts the given byte array to a hexadecimal string.
      *
      * @author Tin Phu
-     * @param bytes the scanner used to scan the user's file path.
-     * @return the File object from the path.
+     * @param bytes the given byte array
+     * @return the hexadecimal string representation of the byte array
      */
     private static String byteArrayToHexString(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
