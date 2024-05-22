@@ -1,9 +1,13 @@
 import java.math.BigInteger;
-
 import static java.math.BigInteger.ONE;
-import static java.math.BigInteger.TWO;
 public class GoldilocksPoint {
+    
+    // Define the value of r for Ed448-Goldilocks (static final for class constant)
+    public static final BigInteger r = BigInteger.TWO.pow(446).subtract(
+            new BigInteger("13818066809895115352007386748515426880336692474882178609894547503885"));
 
+    public static final GoldilocksPoint G = new GoldilocksPoint();
+    
     public static void main(String[] args) {
      // BigInteger a = new BigInteger("563400200929088152613609629378641385410102682117258566404750214022059686929583319585040850282322731241505930835997382613319689400286258");
        // System.out.println(findXFromYwithLSB(, false));
