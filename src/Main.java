@@ -59,7 +59,7 @@ public class Main {
      * @throws IOException If an input file can't be read.
      */
     public static void main(String[] args) throws IOException {
-
+        //Test
         //test Generating a signature and Verifying a signature
         byte[] m = {
                 (byte) 0x00, (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04, (byte) 0x05
