@@ -60,35 +60,7 @@ public class Main {
      */
     public static void main(String[] args) throws IOException {
 
-        //test Generating a signature and Verifying a signature
-        byte[] m = {
-                (byte) 0x00, (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04, (byte) 0x05
-        };
 
-        //Generating a signature for a byte array m under passphrase pw:
-        String pw = "phuhuutin";
-        BigInteger s = new BigInteger(Keccak.KMACXOF256(pw, "".getBytes(), 448, "SK"));
-        s = s.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);
-        //I AM NOT 100% ABOUT THIS PUBLIC KEY
-        //NO MENTION IN THE DOCS WHERE TO GET PUBLIC KEY V AT ALL
-        //BUT THIS IS THEORETICALLY THE RIGHT WAY.
-        GoldilocksPoint V = EllipticCurve.G.multByScalar(s);
-
-
-        BigInteger k = new BigInteger(Keccak.KMACXOF256(s.toString(),m, 448, "N"));
-        k = k.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);;
-
-        GoldilocksPoint U = EllipticCurve.G.multByScalar(k);
-
-        BigInteger h = new BigInteger(Keccak.KMACXOF256(U.x.toString(), m, 448, "T"));
-        BigInteger z = k.subtract(h.multiply(s).mod(EllipticCurve.R)).mod(GoldilocksPoint.r);
-
-        System.out.println("z: " + Arrays.toString(z.toByteArray()));
-        System.out.println("length of z: " +z.toByteArray().length);
-
-
-        byte[] hz = Keccak.concatByteArrays(h.toByteArray(), z.toByteArray());
-        System.out.println(signatureVerify(hz, m, V));
 
 
 
