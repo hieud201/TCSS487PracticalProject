@@ -60,90 +60,228 @@ public class Main {
      */
     public static void main(String[] args) throws IOException {
 
+        //test Generating a signature and Verifying a signature
+        byte[] m = {
+                (byte) 0x00, (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04, (byte) 0x05
+        };
 
-        if (args.length < 1) {
-            System.out.println("Usage: java Main <command>");
-            return;
-        }
-
-        CommandLineArgsHandler handler = new CommandLineArgsHandler(args);
-        System.out.println(handler);
-
-        String command = args[0];
-        switch (command) {
-            case "hash" -> {
-                if (handler.hasTag("file")) {
-                    if (handler.getValue("file").isEmpty()) { // using default filePath: ./dataInput.txt
-                        String currentDir = System.getProperty("user.dir");
-                        String filePath = currentDir + File.separator + "dataInput.txt";
-                        System.out.println("Readding from: " + filePath);
-                        computeHashFromFile(filePath);
-                    } else computeHashFromFile(handler.getValue("file"));
-                } else if (!handler.hasTag("code")) {
-                    System.out.println("Missing -code");
-                } else computeHashFromUserInput(handler.getValue("code"));
-            }
-
-            case "mac" -> {
-                if (handler.hasTag("file")) {
-                    if (!handler.hasTag("pw")) {
-                        System.out.println("Missing -pw");
-                    } else if (handler.getValue("file").isEmpty()) {
-                        String currentDir = System.getProperty("user.dir");
-                        String filePath = currentDir + File.separator + "dataInput.txt";
-                        System.out.println("Readding from: " + filePath);
-                        computeMACFromFile(handler.getValue("pw"), filePath);
-                    } else {
-                        System.out.println("Readding from: " + handler.getValue("file"));
-                        computeMACFromFile(handler.getValue("pw"), handler.getValue("file"));
-                    }
-                } else {
-                    if (!handler.hasTag("pw")) {
-                        System.out.println("Missing -pw");
-                    } else if (!handler.hasTag("code")) {
-                        System.out.println("Missing -code");
-                    } else {
-                        computeMACFromUserInput(handler.getValue("code"), handler.getValue("pw"));
-                    }
-                }
-            }
-
-            case "encrypt" -> {
-                if (!handler.hasTag("pw")) {
-                    System.out.println("Missing -pw");
-                } else {
-                    if (!handler.hasTag("file") || handler.getValue("file").isEmpty()) {
-                        String currentDir = System.getProperty("user.dir");
-                        String filePath = currentDir + File.separator + "toBeEncrypted.txt";
-                        System.out.println("Readding from: " + filePath);
-                        encryptFile(handler.getValue("pw"), filePath);
-                    } else encryptFile(handler.getValue("pw"), handler.getValue("file"));
-                }
-            }
-
-            case "decrypt" -> {
-                if (!handler.hasTag("pw")) {
-                    System.out.println("Missing -pw");
-                } else {
-                    if (!handler.hasTag("file") || handler.getValue("file").isEmpty()) {
-                        String currentDir = System.getProperty("user.dir");
-                        String filePath = currentDir + File.separator + "encryptedFile.txt";
-                        decryptFromFile(handler.getValue("pw"), filePath);
-                    } else decryptFromFile(handler.getValue("pw"), handler.getValue("file"));
-                }
-            }
+        //Generating a signature for a byte array m under passphrase pw:
+        String pw = "phuhuutin";
+        BigInteger s = new BigInteger(Keccak.KMACXOF256(pw, "".getBytes(), 448, "SK"));
+        s = s.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);
+        //I AM NOT 100% ABOUT THIS PUBLIC KEY
+        //NO MENTION IN THE DOCS WHERE TO GET PUBLIC KEY V AT ALL
+        //BUT THIS IS THEORETICALLY THE RIGHT WAY.
+        GoldilocksPoint V = EllipticCurve.G.multByScalar(s);
 
 
-            case "genKeyPair" -> {
-                if (!handler.hasTag("pw")) {
-                    System.out.println("Missing -pw");
-                } else {
-                    generateAsymmetricKey(handler.getValue("pw"));
-                }
-            }
+        BigInteger k = new BigInteger(Keccak.KMACXOF256(s.toString(),m, 448, "N"));
+        k = k.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);;
 
-            default -> System.out.println("Invalid command.");
-        }
+        GoldilocksPoint U = EllipticCurve.G.multByScalar(k);
+
+        BigInteger h = new BigInteger(Keccak.KMACXOF256(U.x.toString(), m, 448, "T"));
+        BigInteger z = k.subtract(h.multiply(s).mod(EllipticCurve.R)).mod(GoldilocksPoint.r);
+
+        System.out.println("z: " + Arrays.toString(z.toByteArray()));
+        System.out.println("length of z: " +z.toByteArray().length);
+
+
+        byte[] hz = Keccak.concatByteArrays(h.toByteArray(), z.toByteArray());
+        System.out.println(signatureVerify(hz, m, V));
+
+
+
+
+//        if (args.length < 1) {
+//            System.out.println("Usage: java Main <command>");
+//            return;
+//        }
+//
+//        CommandLineArgsHandler handler = new CommandLineArgsHandler(args);
+//        System.out.println(handler);
+//
+//        String command = args[0];
+//        switch (command) {
+//            case "hash" -> {
+//                if (handler.hasTag("file")) {
+//                    if (handler.getValue("file").isEmpty()) { // using default filePath: ./dataInput.txt
+//                        String currentDir = System.getProperty("user.dir");
+//                        String filePath = currentDir + File.separator + "dataInput.txt";
+//                        System.out.println("Readding from: " + filePath);
+//                        computeHashFromFile(filePath);
+//                    } else computeHashFromFile(handler.getValue("file"));
+//                } else if (!handler.hasTag("code")) {
+//                    System.out.println("Missing -code");
+//                } else computeHashFromUserInput(handler.getValue("code"));
+//            }
+//
+//            case "mac" -> {
+//                if (handler.hasTag("file")) {
+//                    if (!handler.hasTag("pw")) {
+//                        System.out.println("Missing -pw");
+//                    } else if (handler.getValue("file").isEmpty()) {
+//                        String currentDir = System.getProperty("user.dir");
+//                        String filePath = currentDir + File.separator + "dataInput.txt";
+//                        System.out.println("Readding from: " + filePath);
+//                        computeMACFromFile(handler.getValue("pw"), filePath);
+//                    } else {
+//                        System.out.println("Readding from: " + handler.getValue("file"));
+//                        computeMACFromFile(handler.getValue("pw"), handler.getValue("file"));
+//                    }
+//                } else {
+//                    if (!handler.hasTag("pw")) {
+//                        System.out.println("Missing -pw");
+//                    } else if (!handler.hasTag("code")) {
+//                        System.out.println("Missing -code");
+//                    } else {
+//                        computeMACFromUserInput(handler.getValue("code"), handler.getValue("pw"));
+//                    }
+//                }
+//            }
+//
+//            case "encrypt" -> {
+//                if (!handler.hasTag("pw")) {
+//                    System.out.println("Missing -pw");
+//                } else {
+//                    if (!handler.hasTag("file") || handler.getValue("file").isEmpty()) {
+//                        String currentDir = System.getProperty("user.dir");
+//                        String filePath = currentDir + File.separator + "toBeEncrypted.txt";
+//                        System.out.println("Readding from: " + filePath);
+//                        encryptFile(handler.getValue("pw"), filePath);
+//                    } else encryptFile(handler.getValue("pw"), handler.getValue("file"));
+//                }
+//            }
+//
+//            case "decrypt" -> {
+//                if (!handler.hasTag("pw")) {
+//                    System.out.println("Missing -pw");
+//                } else {
+//                    if (!handler.hasTag("file") || handler.getValue("file").isEmpty()) {
+//                        String currentDir = System.getProperty("user.dir");
+//                        String filePath = currentDir + File.separator + "encryptedFile.txt";
+//                        decryptFromFile(handler.getValue("pw"), filePath);
+//                    } else decryptFromFile(handler.getValue("pw"), handler.getValue("file"));
+//                }
+//            }
+//
+//
+//            case "genKeyPair" -> {
+//                if (!handler.hasTag("pw")) {
+//                    System.out.println("Missing -pw");
+//                } else {
+//                    generateAsymmetricKey(handler.getValue("pw"));
+//                }
+//            }
+//
+//                        case "sign" -> {
+//                if (handler.hasTag("file")) {
+//                    if (!handler.hasTag("pw")) {
+//                        System.out.println("Missing -pw");
+//                    } else if (handler.getValue("file").isEmpty()) {
+//                        String currentDir = System.getProperty("user.dir");
+//                        String filePath = currentDir + File.separator + "dataInput.txt";
+//                        System.out.println("Readding from: " + filePath);
+//                        byte[] m = readByteArrayFromFile(filePath);
+//                        String pw = handler.getValue("pw");
+//                        signByteArrayAndWriteSignatureKey(m, pw);
+//                    } else {
+//                        System.out.println("Readding from: " + handler.getValue("file"));
+//                        String filePath = handler.getValue("file");
+//                        System.out.println("Readding from: " + filePath);
+//                        byte[] m = readByteArrayFromFile(filePath);
+//                        String pw = handler.getValue("pw");
+//                        signByteArrayAndWriteSignatureKey(m, pw);
+//                    }
+//                } else {
+//                    if (!handler.hasTag("pw")) {
+//                        System.out.println("Missing -pw");
+//                    } else if (!handler.hasTag("code")) {
+//                        System.out.println("Missing -code");
+//                    } else {
+//                        byte[] m = readByteArrayFromString(handler.getValue("code"));
+//                        String pw = handler.getValue("pw");
+//                        signByteArrayAndWriteSignatureKey(m, pw);
+//                    }
+//                }
+//            }
+//            case "verify" -> {
+//                //read Signature from  the default file location ./signatureKey.txt
+//                String currentDir = System.getProperty("user.dir");
+//                String signatureFilePath = currentDir + File.separator + "signatureKey.txt";
+//                byte[] hz = readByteArrayFromFile(signatureFilePath);
+//                System.out.println("Reading Signature form " + signatureFilePath);
+//                //geting a given data
+//                byte[] m = {};
+//                //Bonus: from user input
+//                if(handler.hasTag("mCode")){
+//                    m = readByteArrayFromString(handler.getValue("mCode"));
+//                    System.out.println("Reading data form user input ");
+//                }else{
+//                    //From file path.
+//                    if(handler.hasTag("mFile")){
+//                        String mFilePath =  handler.getValue("mFile");
+//                        m = readByteArrayFromFile(mFilePath);
+//                        System.out.println("Reading data form mFilePath ");
+//                    }else{
+//                        System.out.println("Missing -mFile");
+//                        break;
+//                    }
+//
+//                }
+//
+//                byte[] byteArrayPublicKey = {};
+//                ////Bonus: from user input
+//                if(handler.hasTag("pubKey")){
+//                    byteArrayPublicKey = readByteArrayFromString(handler.getValue("pubKey"));
+//                }else {
+//                    //From file path.
+//                    if(handler.hasTag("pubKeyFile")){
+//                        //Using default public key file path
+//                        // which is ./generatedPublicKey.txt
+//                        if(handler.getValue("pubKeyFile").isEmpty()){
+//                            String pubKeyFilePath = currentDir + File.separator + "generatedPublicKey.txt";
+//                            byteArrayPublicKey = readByteArrayFromFile(pubKeyFilePath);
+//                            System.out.println("Reading public key form" + pubKeyFilePath);
+//
+//                        }else{
+//                            String pubKeyFilePath =  handler.getValue("pubKeyFile");
+//                            byteArrayPublicKey = readByteArrayFromFile(pubKeyFilePath);
+//                            System.out.println("Reading public key form" + pubKeyFilePath);
+//
+//                        }
+//                    }else{
+//                        System.out.println("Missing -pubKeyFile, which could be empty (using default pubKey file path)");
+//                        break;
+//                    }
+//                }
+//                //turn byteArrayPublicKey in to Goldilocks Point
+//                GoldilocksPoint publicKeyPoint = EllipticCurve.getPointFromPublicKey(byteArrayPublicKey);
+//              //  System.out.println("publicKeyPoint: " + publicKeyPoint.toString());
+//                        System.out.println("Verified: " + signatureVerify(hz,m,publicKeyPoint));
+//            }
+//
+//            default -> System.out.println("Invalid command.");
+//        }
+    }
+
+    /**
+     *  sign a  Byte Array And Write SignatureKey
+     *  the pathfile ./signatureKey.txt
+     * @Author Tin Phu
+     * @param m
+     * @param pw
+     * @throws IOException
+     */
+    private static void signByteArrayAndWriteSignatureKey(byte[] m, String pw) throws IOException {
+        //generate AsymmetricKey
+        //the main purpose is to write the current correct Public Key
+        generateAsymmetricKey(pw);
+
+        //Sign
+        byte[] conCatOfHZ = signatureGenerator(m, pw);
+        //write signature to a ./signatureKey.txt file.
+        writeStringToFile(byteArrayToHexString(conCatOfHZ), "signatureKey.txt");
     }
 
     /**
@@ -345,7 +483,7 @@ public class Main {
         GoldilocksPoint V = EllipticCurve.getPointFromPublicKey(publicKeyByte);
 
         GoldilocksPoint W = V.multByScalar(k); // W = k*V
-        GoldilocksPoint Z = GoldilocksPoint.G.multByScalar(k); // Z = k*G
+        GoldilocksPoint Z = EllipticCurve.G.multByScalar(k); // Z = k*G
 
         // (ke || ka) <- KMACXOF256(Wx, “”, 2×448, “PK”)
         byte[] keka = Keccak.KMACXOF256(W.x.toString(), "".getBytes(), 2*448, "PK");
@@ -500,15 +638,15 @@ public class Main {
 	private static byte[] signatureGenerator(byte[] m,String pw){
         
 		BigInteger s = new BigInteger(Keccak.KMACXOF256(pw, "".getBytes(), 448, "SK"));
-		s = s.multiply(BigInteger.valueOf(4));
+		s = s.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);
 
 		BigInteger k = new BigInteger(Keccak.KMACXOF256(s.toString(),m, 448, "N"));
-		k = k.multiply(BigInteger.valueOf(4));
+		k = k.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);;
 
-		GoldilocksPoint U = GoldilocksPoint.G.multByScalar(k);
+		GoldilocksPoint U = EllipticCurve.G.multByScalar(k);
 		
 		BigInteger h = new BigInteger(Keccak.KMACXOF256(U.x.toString(), m, 448, "T"));
-		BigInteger z = k.subtract(h.multiply(s)).mod(GoldilocksPoint.r);
+		BigInteger z = k.subtract(h.multiply(s)).mod(EllipticCurve.R);
 
 		return Keccak.concatByteArrays(h.toByteArray(), z.toByteArray());
 
@@ -525,20 +663,28 @@ public class Main {
 	 */
 	private static boolean signatureVerify(byte[] hz, byte[] m, GoldilocksPoint V) {
 
-		byte[] h = new byte[64];
-		byte[] z = new byte[hz.length -64];
-		for (int i = 0; i < h.length; i++) {
-			h[i] = hz[i];
-		}
-		for (int i = 0; i < z.length; i++) {
-			z[i] = hz[64+i];
-		}
+//		byte[] h = new byte[64];
+//		byte[] z = new byte[hz.length -64];
+//		for (int i = 0; i < h.length; i++) {
+//			h[i] = hz[i];
+//		}
+//		for (int i = 0; i < z.length; i++) {
+//			z[i] = hz[64+i];
+//		}
+        byte[] h = new byte[56];
+        byte[] z = new byte[hz.length -56];
+        for (int i = 0; i < h.length; i++) {
+            h[i] = hz[i];
+        }
+        for (int i = 0; i < z.length; i++) {
+            z[i] = hz[56+i];
+        }
 
 		BigInteger hVal = new BigInteger(h);
 		BigInteger zVal = new BigInteger(z);
 
 		GoldilocksPoint hV = V.multByScalar(hVal);
-		GoldilocksPoint zG = GoldilocksPoint.G.multByScalar(zVal);
+		GoldilocksPoint zG = EllipticCurve.G.multByScalar(zVal);
 		
 		GoldilocksPoint U = hV.add(zG);
 		BigInteger uX = U.x;
