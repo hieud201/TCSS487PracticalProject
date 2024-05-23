@@ -171,7 +171,6 @@ public class Main {
             System.out.println("Wrote Hexadecimal of Public Key to ./generatedPublicKey.txt ");
             //Bonus points:
             //Encrypt the private key from that pair under the given password
-            //TODO: this is not implemented yet
             writeStringToFile(byteArrayToHexString(encryptByteArrayKey(pw,privateKey)), "generatedPrivateKey.txt");
             System.out.println("Wrote Hexadecimal of Encrypted Private Key to ./generatedPrivateKey.txt ");
 
@@ -348,7 +347,7 @@ public class Main {
         GoldilocksPoint W = V.multByScalar(k); // W = k*V
         GoldilocksPoint Z = GoldilocksPoint.G.multByScalar(k); // Z = k*G
 
-        // (ka || ke) <- KMACXOF256(Wx, “”, 2×448, “PK”)
+        // (ke || ka) <- KMACXOF256(Wx, “”, 2×448, “PK”)
         byte[] keka = Keccak.KMACXOF256(W.x.toString(), "".getBytes(), 2*448, "PK");
         int halfLength = keka.length / 2;
         byte[] ke = Arrays.copyOfRange(keka, 0, halfLength);
@@ -372,15 +371,15 @@ public class Main {
 
     /**
      * Decrypts data from a file using the provided passphrase.
-     * Writes the given byte array to a file path "./encryptedFile.txt".
      * Ref Programming Project Part 1 document.
      *
      * @author Hieu Doan
      * @param pw The passphrase used for decryption.
      * @param filePath The path of the file containing the encrypted data.
+     * @return The decrypted data as bytes.
      */
-    private static void decryptFromFile(String pw, String filePath) {
-        byte[] decryptedByteArray;
+    private static byte[] decryptFromFile(String pw, String filePath) {
+        byte[] decryptedByteArray = null;
 
         try {
             // parsing the necessary components of the cryptogram
@@ -388,7 +387,7 @@ public class Main {
 
             //extract z
             byte[] z = Arrays.copyOfRange(inputByteArray,0, 64);
-            int ctLength = (inputByteArray.length - z.length)/2;
+            //int ctLength = (inputByteArray.length - z.length)/2;
 
             //extract t
             byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - 64, inputByteArray.length );
@@ -420,6 +419,75 @@ public class Main {
         } catch (IOException e) {
             System.err.println("Error reading file: " + e.getMessage());
         }
+
+        return decryptedByteArray;
+    }
+
+    /**
+     * Decrypts data from an elliptic-encrypted file using the provided passphrase,
+     * writes the decrypted data to a file and returns it.
+     * Ref Programming Project Part 2 document.
+     *
+     * @author Hieu Doan
+     * @param pw The passphrase used for decryption.
+     * @param filePath The path of the file containing the elliptic-encrypted data.
+     * @return The decrypted data as bytes.
+     */
+    private static byte[] decryptFromEllipticFile(String pw, String filePath) {
+        byte[] decryptedByteArray = null;
+
+        try {
+            // extracts the elliptic-encrypted data from the input file
+            byte[] inputByteArray = readByteArrayFromFile(filePath);
+
+            // decrypts the encrypted private key file and extracts the private key
+            byte[] privateKeyByteArray = decryptFromFile(pw, "generatedPrivateKey.txt");
+            BigInteger s = new BigInteger(privateKeyByteArray);
+
+            //extracts Z
+            /*
+            TODO: I dont know if this is the correct way to extract Z as bytes and convert it to a Point
+                  My guess is that since Z is 0,1 and Z.y as a byte array represents Z in the cryptogram,
+                  so byte array of Z would just be [1] and therefore its length is 1.
+            TODO: Should we come up with a constructor in GoldilocksPoint that
+                  takes in the equivalent byte array of the point?
+             */
+            byte[] ZBytes = Arrays.copyOfRange(inputByteArray, 0, 1);
+            GoldilocksPoint Z = new GoldilocksPoint();
+
+            //extract t
+            byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - (448/8), inputByteArray.length);
+
+            //extract c, know that c bytes = inputByteArray.length - (Z.length + t.length)
+            byte[] c = Arrays.copyOfRange(inputByteArray, ZBytes.length, inputByteArray.length - t.length);
+
+            GoldilocksPoint W = Z.multByScalar(s); // W = s*Z
+
+            // (ke || ka) <- KMACXOF256(Wx, “”, 2×448, “PK”)
+            byte[] keka = Keccak.KMACXOF256(W.x.toString(), "".getBytes(), 2*448, "PK");
+            byte[] ke = Arrays.copyOfRange(keka,0, keka.length/2);
+            byte[] ka = Arrays.copyOfRange(keka,keka.length/2, keka.length);
+
+            // m <- KMACXOF256(ke, “”, |c|, “PKE”) XOR c
+            byte[] m = Keccak.KMACXOF256(new String(ke), "".getBytes(), (c.length * 8), "PKE");
+            m = Keccak.xorBytes(m, c);
+
+            // t’ <- KMACXOF256(ka, m, 448, “PKA”)
+            byte[] tPrime = Keccak.KMACXOF256(new String(ka), m, 448, "PKA");
+
+            // printing the successful decryption when t' = t
+            if (Arrays.equals(t, tPrime)) {
+                decryptedByteArray = m;
+                writeStringToFile(byteArrayToHexString(decryptedByteArray), "decryptedFile.txt");
+                System.out.println("\nDecrypted output:\n" + new String(decryptedByteArray, StandardCharsets.UTF_8));
+            } else {
+                System.out.println("Fail to decrypt!");
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading file: " + e.getMessage());
+        }
+
+        return decryptedByteArray;
     }
 
     /**
