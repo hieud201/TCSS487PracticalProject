@@ -64,7 +64,7 @@ public class Keccak {
      * The Keccak Message Authentication with extensible output, ref NIST SP 800-185 sec 4.3.1
      *
      * @author Tin Phu
-     * @param k the key as a string
+     * @param k the key as byte array
      * @param x the input bytes
      * @param l the desired bit length
      * @param s the customization string

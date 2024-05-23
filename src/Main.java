@@ -59,39 +59,6 @@ public class Main {
      * @throws IOException If an input file can't be read.
      */
     public static void main(String[] args) throws IOException {
-        //test
-        //test Generating a signature and Verifying a signature
-        byte[] m = {
-                (byte) 0x00, (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04, (byte) 0x05
-        };
-
-        //Generating a signature for a byte array m under passphrase pw:
-        String pw = "phuhuutin";
-        BigInteger s = new BigInteger(Keccak.KMACXOF256(pw, "".getBytes(), 448, "SK"));
-        s = s.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);
-        //I AM NOT 100% ABOUT THIS PUBLIC KEY
-        //NO MENTION IN THE DOCS WHERE TO GET PUBLIC KEY V AT ALL
-        //BUT THIS IS THEORETICALLY THE RIGHT WAY.
-        GoldilocksPoint V = EllipticCurve.G.multByScalar(s);
-
-
-        BigInteger k = new BigInteger(Keccak.KMACXOF256(s.toString(),m, 448, "N"));
-        k = k.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);;
-
-        GoldilocksPoint U = EllipticCurve.G.multByScalar(k);
-
-        BigInteger h = new BigInteger(Keccak.KMACXOF256(U.x.toString(), m, 448, "T"));
-        BigInteger z = k.subtract(h.multiply(s).mod(EllipticCurve.R)).mod(GoldilocksPoint.r);
-
-        System.out.println("z: " + Arrays.toString(z.toByteArray()));
-        System.out.println("length of z: " +z.toByteArray().length);
-
-
-        byte[] hz = Keccak.concatByteArrays(h.toByteArray(), z.toByteArray());
-        System.out.println(signatureVerify(hz, m, V));
-
-
-
 
 //        if (args.length < 1) {
 //            System.out.println("Usage: java Main <command>");
@@ -279,7 +246,7 @@ public class Main {
         generateAsymmetricKey(pw);
 
         //Sign
-        byte[] conCatOfHZ = signatureGenerator(m, pw);
+        byte[] conCatOfHZ = EllipticCurve.signatureGenerator(m, pw);
         //write signature to a ./signatureKey.txt file.
         writeStringToFile(byteArrayToHexString(conCatOfHZ), "signatureKey.txt");
     }
@@ -628,76 +595,6 @@ public class Main {
         return decryptedByteArray;
     }
 
-    /**
-	 * Generates a digital signature from the message and private key.
-	 * @param m The message to be signed.
-	 * @param pw The private key.
-	 * @return A byte array containing the generated digital signature.
-     * @author An Ho
-	 */
-	private static byte[] signatureGenerator(byte[] m,String pw){
-        
-		BigInteger s = new BigInteger(Keccak.KMACXOF256(pw, "".getBytes(), 448, "SK"));
-		s = s.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);
-
-		BigInteger k = new BigInteger(Keccak.KMACXOF256(s.toString(),m, 448, "N"));
-		k = k.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);;
-
-		GoldilocksPoint U = EllipticCurve.G.multByScalar(k);
-		
-		BigInteger h = new BigInteger(Keccak.KMACXOF256(U.x.toString(), m, 448, "T"));
-		BigInteger z = k.subtract(h.multiply(s)).mod(EllipticCurve.R);
-
-		return Keccak.concatByteArrays(h.toByteArray(), z.toByteArray());
-
-         
-	}
-
-    /**
-	 * Verify a digital signature without receiving the private key used to sign.
-	 * @param hz The digital signature as provided. 
-	 * @param m The data signed by digital signature.
-	 * @param V A point on E521 generated using the private key.
-	 * @return true if the signature can be verified; false otherwise.
-     * @author An Ho
-	 */
-	private static boolean signatureVerify(byte[] hz, byte[] m, GoldilocksPoint V) {
-
-//		byte[] h = new byte[64];
-//		byte[] z = new byte[hz.length -64];
-//		for (int i = 0; i < h.length; i++) {
-//			h[i] = hz[i];
-//		}
-//		for (int i = 0; i < z.length; i++) {
-//			z[i] = hz[64+i];
-//		}
-        byte[] h = new byte[56];
-        byte[] z = new byte[hz.length -56];
-        for (int i = 0; i < h.length; i++) {
-            h[i] = hz[i];
-        }
-        for (int i = 0; i < z.length; i++) {
-            z[i] = hz[56+i];
-        }
-
-		BigInteger hVal = new BigInteger(h);
-		BigInteger zVal = new BigInteger(z);
-
-		GoldilocksPoint hV = V.multByScalar(hVal);
-		GoldilocksPoint zG = EllipticCurve.G.multByScalar(zVal);
-		
-		GoldilocksPoint U = hV.add(zG);
-		BigInteger uX = U.x;
-		byte[] test = Keccak.KMACXOF256(uX.toString(), m, 448, "T");
-
-		boolean ret = true;
-		if (test.length != h.length) ret = false;
-		for (int i = 0; i < h.length; i++) {
-			if (h[i] != test[i]) ret = false;
-		}
-
-		return ret;
-	}
 
 
     /************************************************************
