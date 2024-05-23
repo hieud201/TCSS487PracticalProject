@@ -7,7 +7,15 @@ public class GoldilocksPoint {
             new BigInteger("13818066809895115352007386748515426880336692474882178609894547503885"));
 
     public static final GoldilocksPoint O = new GoldilocksPoint();
-    
+
+    final static  BigInteger PRIME_P = (BigInteger.TWO.pow(448) // 2^448
+                    .subtract(BigInteger.TWO.pow(224)) // - 2^224
+                    .subtract(BigInteger.ONE)); // - 1
+    private static final BigInteger D = BigInteger.valueOf(-39081); // The value of 'd' for the curve
+
+    public BigInteger x;
+    public BigInteger y;
+
     public static void main(String[] args) {
       BigInteger a = new BigInteger("563400200929088152613609629378641385410102682117258566404750214022059686929583319585040850282322731241505930835997382613319689400286258");
         // test GoldilocksPoint f();
@@ -25,15 +33,6 @@ public class GoldilocksPoint {
         System.out.println(EllipticCurve.G.multByScalar(EllipticCurve.R));
 
     }
-
-    final static  BigInteger PRIME_P = (
-            BigInteger.TWO.pow(448) // 2^448
-                    .subtract(BigInteger.TWO.pow(224)) // - 2^224
-                    .subtract(BigInteger.ONE)); // - 1
-    private static final BigInteger D = BigInteger.valueOf(-39081); // The value of 'd' for the curve
-
-    public BigInteger x;
-    public BigInteger y;
 
     public GoldilocksPoint(BigInteger x, BigInteger y) {
         this.x = x;

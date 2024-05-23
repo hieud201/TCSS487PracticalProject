@@ -50,6 +50,8 @@ public class Main {
      */
     private static final SecureRandom random = new SecureRandom();
 
+    private static int ZyByteArrayLength;
+
     
     /**
      * Driver code to handle command line arguments.
@@ -80,18 +82,13 @@ public class Main {
 
         GoldilocksPoint U = EllipticCurve.G.multByScalar(k);
 
-        BigInteger h = new BigInteger(Keccak.KMACXOF256(U.x.toString(), m, 448, "T"));
-        BigInteger z = k.subtract(h.multiply(s).mod(EllipticCurve.R)).mod(GoldilocksPoint.r);
 
         System.out.println("z: " + Arrays.toString(z.toByteArray()));
         System.out.println("length of z: " +z.toByteArray().length);
 
-
-        byte[] hz = Keccak.concatByteArrays(h.toByteArray(), z.toByteArray());
-        System.out.println(signatureVerify(hz, m, V));
-
-
-
+        generateAsymmetricKey(pw);
+        encryptByteArrayUnderDHIES(m);
+        decryptFromEllipticFile(pw, "src/encryptedFileUnderDHIES.txt");
 
 //        if (args.length < 1) {
 //            System.out.println("Usage: java Main <command>");
@@ -302,14 +299,14 @@ public class Main {
 
         try {
             String PublicKeyString = byteArrayToHexString(publicKey);
-            writeStringToFile(byteArrayToHexString(publicKey), "generatedPublicKey.txt");
+            writeStringToFile(byteArrayToHexString(publicKey), "src/generatedPublicKey.txt");
             //byte[] publicKeyByte = readByteArrayFromString(PublicKeyString);
             //System.out.println("X: " + EllipticCurve.getPointFromPublicKey(publicKeyByte));
 
             System.out.println("Wrote Hexadecimal of Public Key to ./generatedPublicKey.txt ");
             //Bonus points:
             //Encrypt the private key from that pair under the given password
-            writeStringToFile(byteArrayToHexString(encryptByteArrayKey(pw,privateKey)), "generatedPrivateKey.txt");
+            writeStringToFile(byteArrayToHexString(encryptByteArrayKey(pw,privateKey)), "src/generatedPrivateKey.txt");
             System.out.println("Wrote Hexadecimal of Encrypted Private Key to ./generatedPrivateKey.txt ");
 
         } catch (IOException e) {
@@ -479,7 +476,10 @@ public class Main {
         k = (BigInteger.valueOf(4)).multiply(k).mod(EllipticCurve.R); // k <- 4k mod r
 
         // converting the public key bytes to a GoldilocksPoint
-        byte[] publicKeyByte = readByteArrayFromFile("generatedPublicKey.txt");
+        // LOCAL ABSOLUTE PATH TO PUBLIC KEY FILE: /Users/hieudoan/intellij-workspace/TCSS487PracticalProject/src/generatedPublicKey.txt
+        String absoluteFolderPath = new File("src").getAbsolutePath();
+        String filePath = absoluteFolderPath + File.separator + "generatedPublicKey.txt";
+        byte[] publicKeyByte = readByteArrayFromFile(filePath);
         GoldilocksPoint V = EllipticCurve.getPointFromPublicKey(publicKeyByte);
 
         GoldilocksPoint W = V.multByScalar(k); // W = k*V
@@ -499,7 +499,10 @@ public class Main {
         byte[] t = Keccak.KMACXOF256(new String(ka), byteArray, 448, "PKA");
 
         byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(Z.y.toByteArray(), c), t);
-        writeStringToFile(byteArrayToHexString(previousCryptogram), "encryptedFile.txt");
+        ZyByteArrayLength = Z.y.toByteArray().length;
+        // I save the cryptogram under a new file for testing purpose.
+        // Let me know if this is not needed for our final work.
+        writeStringToFile(byteArrayToHexString(previousCryptogram), "src/encryptedFileUnderDHIES.txt");
         System.out.println("Cryptogram:\n" + byteArrayToHexString(previousCryptogram));
 
         return previousCryptogram;
@@ -579,19 +582,12 @@ public class Main {
             byte[] inputByteArray = readByteArrayFromFile(filePath);
 
             // decrypts the encrypted private key file and extracts the private key
-            byte[] privateKeyByteArray = decryptFromFile(pw, "generatedPrivateKey.txt");
+            byte[] privateKeyByteArray = decryptFromFile(pw, "src/generatedPrivateKey.txt");
             BigInteger s = new BigInteger(privateKeyByteArray);
 
             //extracts Z
-            /*
-            TODO: I dont know if this is the correct way to extract Z as bytes and convert it to a Point
-                  My guess is that since Z is 0,1 and Z.y as a byte array represents Z in the cryptogram,
-                  so byte array of Z would just be [1] and therefore its length is 1.
-            TODO: Should we come up with a constructor in GoldilocksPoint that
-                  takes in the equivalent byte array of the point?
-             */
-            byte[] ZBytes = Arrays.copyOfRange(inputByteArray, 0, 1);
-            GoldilocksPoint Z = new GoldilocksPoint();
+            byte[] ZBytes = Arrays.copyOfRange(inputByteArray, 0, ZyByteArrayLength);
+            GoldilocksPoint Z = new GoldilocksPoint(false, new BigInteger(ZBytes));
 
             //extract t
             byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - (448/8), inputByteArray.length);
@@ -617,7 +613,6 @@ public class Main {
             if (Arrays.equals(t, tPrime)) {
                 decryptedByteArray = m;
                 writeStringToFile(byteArrayToHexString(decryptedByteArray), "decryptedFile.txt");
-                System.out.println("\nDecrypted output:\n" + new String(decryptedByteArray, StandardCharsets.UTF_8));
             } else {
                 System.out.println("Fail to decrypt!");
             }
