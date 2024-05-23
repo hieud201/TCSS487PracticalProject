@@ -295,17 +295,47 @@ public class Main {
     }
 
     /**
+     * Encrypts a given data file symmetrically under a given passphrase
+     * and stores the cryptogram in a file as z || c || t.
+     * Ref Programming Project Part 1 document.
+     *
+     * @author Hieu Doan
+     * @throws IOException if the file can't be written to
+     */
+    private static byte[] encryptByteArrayKey(String pw, byte[] byteArray) throws IOException {
+        byte[] z = new byte[64];
+        Main.random.nextBytes(z); // z <- Random(512)
+
+        // (ke || ka) <- KMACXOF256(z || pw, “”, 1024, “S”)
+        byte[] keka = Keccak.KMACXOF256(new String(Keccak.concatByteArrays(z, pw.getBytes())), "".getBytes(), 1024, "S");
+        //System.out.println(keka.length);
+        int halfLength = keka.length / 2;
+        byte[] ke = Arrays.copyOfRange(keka, 0, halfLength);
+        byte[] ka = Arrays.copyOfRange(keka, halfLength, keka.length);
+
+        // c <- KMACXOF256(ke, “”, |m|, “SKE”) XOR m
+        byte[] c = Keccak.KMACXOF256(new String(ke), "".getBytes(), (byteArray.length * 8), "SKE");
+        c =  Keccak.xorBytes(c, byteArray);
+
+
+        // t <- KMACXOF256(ka, m, 512, “SKA”)
+        byte[] t = Keccak.KMACXOF256(new String(ka), byteArray, 512, "SKA");
+        // writing the cryptogram (z,c,t) to a file and printing it
+        return Keccak.concatByteArrays(Keccak.concatByteArrays(z, c), t);
+    }
+
+
+    /**
      * Encrypts a byte array under a Schnorr/DHIES given public key file,
      * stores the cryptogram in a file as z || c || t,
      * and returns that cryptogram as bytes. <br>
      * Ref Programming Project Part 2 document.
-     * @author An Ho, Hieu Doan
-     *
+     * @author Hieu Doan
      * @param byteArray the message byte array
      * @return the cryptogram in the form of as z || c || t.
      * @throws IOException if the file can't be written to
      */
-    private static byte[] encryptByteArray(byte[] byteArray) throws IOException {
+    private static byte[] encryptByteArrayUnderDHIES(byte[] byteArray) throws IOException {
         byte[] k_temp = new byte[448/8];
         Main.random.nextBytes(k_temp); // k <- Random(448)
         BigInteger k = new BigInteger(k_temp);
@@ -338,9 +368,7 @@ public class Main {
         return previousCryptogram;
     }
 
-    private static byte[] encryptByteArrayKey(String pw, byte[] keyBytes) {
-        
-    }
+
 
     /**
      * Decrypts data from a file using the provided passphrase.
