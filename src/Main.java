@@ -7,6 +7,7 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  *  First, type in command <code>javac Main.java</code> to compile the file at its current dir. <br>
@@ -83,8 +84,8 @@ public class Main {
         GoldilocksPoint U = EllipticCurve.G.multByScalar(k);
 
 
-        System.out.println("z: " + Arrays.toString(z.toByteArray()));
-        System.out.println("length of z: " +z.toByteArray().length);
+//        System.out.println("z: " + Arrays.toString(z.toByteArray()));
+//        System.out.println("length of z: " +z.toByteArray().length);
 
         generateAsymmetricKey(pw);
         encryptByteArrayUnderDHIES(m);
@@ -486,17 +487,17 @@ public class Main {
         GoldilocksPoint Z = EllipticCurve.G.multByScalar(k); // Z = k*G
 
         // (ke || ka) <- KMACXOF256(Wx, “”, 2×448, “PK”)
-        byte[] keka = Keccak.KMACXOF256(W.x.toString(), "".getBytes(), 2*448, "PK");
+        byte[] keka = Keccak.KMACXOF256(W.x.toByteArray(), "".getBytes(), 2*448, "PK");
         int halfLength = keka.length / 2;
         byte[] ke = Arrays.copyOfRange(keka, 0, halfLength);
         byte[] ka = Arrays.copyOfRange(keka, halfLength, keka.length);
 
         // c <- KMACXOF256(ke, “”, |m|, “PKE”) XOR m
-        byte[] c = Keccak.KMACXOF256(new String(ke), "".getBytes(), (byteArray.length * 8), "PKE");
+        byte[] c = Keccak.KMACXOF256(ke, "".getBytes(), (byteArray.length * 8), "PKE");
         c =  Keccak.xorBytes(c, byteArray);
 
         // t <- KMACXOF256(ka, m, 448, “SKA”)
-        byte[] t = Keccak.KMACXOF256(new String(ka), byteArray, 448, "PKA");
+        byte[] t = Keccak.KMACXOF256(ka, byteArray, 448, "PKA");
 
         byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(Z.y.toByteArray(), c), t);
         ZyByteArrayLength = Z.y.toByteArray().length;
@@ -598,16 +599,16 @@ public class Main {
             GoldilocksPoint W = Z.multByScalar(s); // W = s*Z
 
             // (ke || ka) <- KMACXOF256(Wx, “”, 2×448, “PK”)
-            byte[] keka = Keccak.KMACXOF256(W.x.toString(), "".getBytes(), 2*448, "PK");
+            byte[] keka = Keccak.KMACXOF256(W.x.toByteArray(), "".getBytes(), 2*448, "PK");
             byte[] ke = Arrays.copyOfRange(keka,0, keka.length/2);
             byte[] ka = Arrays.copyOfRange(keka,keka.length/2, keka.length);
 
             // m <- KMACXOF256(ke, “”, |c|, “PKE”) XOR c
-            byte[] m = Keccak.KMACXOF256(new String(ke), "".getBytes(), (c.length * 8), "PKE");
+            byte[] m = Keccak.KMACXOF256(ke, "".getBytes(), (c.length * 8), "PKE");
             m = Keccak.xorBytes(m, c);
 
             // t’ <- KMACXOF256(ka, m, 448, “PKA”)
-            byte[] tPrime = Keccak.KMACXOF256(new String(ka), m, 448, "PKA");
+            byte[] tPrime = Keccak.KMACXOF256(ka, m, 448, "PKA");
 
             // printing the successful decryption when t' = t
             if (Arrays.equals(t, tPrime)) {
