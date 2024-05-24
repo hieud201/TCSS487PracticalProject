@@ -20,7 +20,10 @@ public class GoldilocksPoint {
       BigInteger a = new BigInteger("563400200929088152613609629378641385410102682117258566404750214022059686929583319585040850282322731241505930835997382613319689400286258");
         // test GoldilocksPoint f();
         // must return 8;
-        System.out.println(new GoldilocksPoint(false, a).x);
+//        System.out.println(new GoldilocksPoint(false, a).x);
+//        System.out.println(new GoldilocksPoint(true, a).x);
+
+
         // var a = new BigInteger("-1");
         //(𝑘 ⋅ 𝐺) + ((ℓ ⋅ 𝐺) + (𝑚 ⋅ 𝐺)) = ((𝑘 ⋅ 𝐺) + (ℓ ⋅ 𝐺)) + (𝑚 ⋅ 𝐺) test
         var k = new BigInteger("45");
@@ -28,9 +31,13 @@ public class GoldilocksPoint {
         var m = new BigInteger("4555");
         var A = EllipticCurve.G.multByScalar(k).add((EllipticCurve.G.multByScalar(l)).add(EllipticCurve.G.multByScalar(m)));
         var B = (EllipticCurve.G.multByScalar(k).add(EllipticCurve.G.multByScalar(l))).add(EllipticCurve.G.multByScalar(m));
-        System.out.println(A.toString());
-        System.out.println(B.toString());
-        System.out.println(EllipticCurve.G.multByScalar(EllipticCurve.R));
+       System.out.println(A.toString());
+//        System.out.println(B.toString());
+        System.out.println(A.y);
+        System.out.println(new GoldilocksPoint(true,A.y));
+
+
+       // System.out.println(EllipticCurveReal.G.multByScalar(EllipticCurveReal.R));
 
     }
 
