@@ -64,7 +64,7 @@ public class Main {
         //test
         //test Generating a signature and Verifying a signature
         byte[] m = {
-                (byte) 0x00, (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04, (byte) 0x05
+                (byte) 0x00, (byte) 0x11, (byte) 0x12, (byte) 0x03, (byte) 0x04, (byte) 0x05
         };
 
         //Generating a signature for a byte array m under passphrase pw:
@@ -75,20 +75,61 @@ public class Main {
         //NO MENTION IN THE DOCS WHERE TO GET PUBLIC KEY V AT ALL
         //BUT THIS IS THEORETICALLY THE RIGHT WAY.
         GoldilocksPoint V = EllipticCurve.G.multByScalar(s);
-
-
-        BigInteger k = new BigInteger(Keccak.KMACXOF256(s.toString(),m, 448, "N"));
-        k = k.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);;
-
-        GoldilocksPoint U = EllipticCurve.G.multByScalar(k);
-
-
+//        BigInteger k = new BigInteger(Keccak.KMACXOF256(s.toString(),m, 448, "N"));
+//        k = k.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);;
+//        GoldilocksPoint U = EllipticCurve.G.multByScalar(k);
 //        System.out.println("z: " + Arrays.toString(z.toByteArray()));
 //        System.out.println("length of z: " +z.toByteArray().length);
 
-        generateAsymmetricKey(pw);
-        encryptByteArrayUnderDHIES(m);
-        decryptFromEllipticFile(pw, "src/encryptedFileUnderDHIES.txt");
+        /* TEST ENCRYPTION & DECRYPTION */
+        byte[] k_temp = new byte[448/8];
+        Main.random.nextBytes(k_temp);
+        BigInteger k = new BigInteger(k_temp);
+        k = (BigInteger.valueOf(4)).multiply(k).mod(EllipticCurve.R); // k <- 4k mod r
+        GoldilocksPoint W = V.multByScalar(k); // W = k*V
+        GoldilocksPoint Z = EllipticCurve.G.multByScalar(k); // Z = k*G
+        // (ke || ka) <- KMACXOF256(Wx, “”, 2×448, “PK”)
+        byte[] keka = Keccak.KMACXOF256(W.x.toByteArray(), "".getBytes(), 2*448, "PK");
+        int halfLength = keka.length / 2;
+        byte[] ke = Arrays.copyOfRange(keka, 0, halfLength);
+        byte[] ka = Arrays.copyOfRange(keka, halfLength, keka.length);
+        // c <- KMACXOF256(ke, “”, |m|, “PKE”) XOR m
+        byte[] c = Keccak.KMACXOF256(ke, "".getBytes(), (m.length * 8), "PKE");
+        c =  Keccak.xorBytes(c, m);
+        // t <- KMACXOF256(ka, m, 448, “SKA”)
+        byte[] t = Keccak.KMACXOF256(ka, m, 448, "PKA");
+        byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(Z.y.toByteArray(), c), t);
+        ZyByteArrayLength = Z.y.toByteArray().length;
+        System.out.println("Cryptogram:\n" + byteArrayToHexString(previousCryptogram));
+
+        //extracts Z'
+        byte[] ZBytes = Arrays.copyOfRange(previousCryptogram, 0, ZyByteArrayLength);
+        GoldilocksPoint ZPrime = new GoldilocksPoint(false, new BigInteger(ZBytes));
+        //extract t'
+        byte[] tPrime = Arrays.copyOfRange(previousCryptogram, previousCryptogram.length - (448/8), previousCryptogram.length);
+        //extract c', know that c' bytes = previousCryptogram.length - (Z'.length + t'.length)
+        byte[] cPrime = Arrays.copyOfRange(previousCryptogram, ZBytes.length, previousCryptogram.length - tPrime.length);
+        GoldilocksPoint Wprime = ZPrime.multByScalar(s); // W = s*Z
+        System.out.println("Wprime = W: " + Wprime.isEquals(W));
+        // (ke || ka)' <- KMACXOF256(W'x, “”, 2×448, “PK”)
+        byte[] kekaPrime = Keccak.KMACXOF256(Wprime.x.toByteArray(), "".getBytes(), 2*448, "PK");
+        byte[] kePrime = Arrays.copyOfRange(kekaPrime,0, kekaPrime.length/2);
+        byte[] kaPrime = Arrays.copyOfRange(kekaPrime,kekaPrime.length/2, kekaPrime.length);
+        // m' <- KMACXOF256(ke', “”, |c|, “PKE”) XOR c'
+        byte[] mPrime = Keccak.KMACXOF256(kePrime, "".getBytes(), (cPrime.length * 8), "PKE");
+        mPrime = Keccak.xorBytes(mPrime, cPrime);
+        // t’' <- KMACXOF256(ka', m', 448, “PKA”)
+        byte[] tPrimePrime = Keccak.KMACXOF256(kaPrime, mPrime, 448, "PKA");
+        // printing the successful decryption when t' = t
+        if (Arrays.equals(tPrime, tPrimePrime)) {
+            System.out.println("Decrypted output: " + Arrays.toString(mPrime));
+        } else {
+            System.out.println("Fail to decrypt!");
+        }
+
+
+
+
 
 //        if (args.length < 1) {
 //            System.out.println("Usage: java Main <command>");
