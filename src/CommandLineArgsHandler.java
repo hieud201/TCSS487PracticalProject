@@ -24,7 +24,7 @@ public class CommandLineArgsHandler {
             if (arg.startsWith("-")) {
                 String tag = arg.substring(1); // Remove the "-"
                 String value = "";
-                if ("code".equals(tag)) {
+                if ("code".equals(tag) || "mCode".equals(tag)) {
                     // Handling for -code tag
                     StringBuilder codeValueBuilder = new StringBuilder();
                     while (i + 1 < args.length && !args[i + 1].startsWith("-")) {
