@@ -50,6 +50,9 @@ public class Main {
      */
     private static final SecureRandom random = new SecureRandom();
 
+    /**
+     * Length of Z.y as a byte array.
+     */
     private static int ZyByteArrayLength;
 
 
@@ -133,56 +136,6 @@ public class Main {
                     } else decryptFromFile(handler.getValue("pw"), handler.getValue("file"));
                 }
             }
-
-
-        /* TEST ENCRYPTION & DECRYPTION */
-        byte[] k_temp = new byte[448/8];
-        Main.random.nextBytes(k_temp);
-        BigInteger k = new BigInteger(k_temp);
-        k = (BigInteger.valueOf(4)).multiply(k).mod(EllipticCurve.R); // k <- 4k mod r
-        GoldilocksPoint W = V.multByScalar(k); // W = k*V
-        GoldilocksPoint Z = EllipticCurve.G.multByScalar(k); // Z = k*G
-        // (ke || ka) <- KMACXOF256(Wx, “”, 2×448, “PK”)
-        byte[] keka = Keccak.KMACXOF256(W.x.toByteArray(), "".getBytes(), 2*448, "PK");
-        int halfLength = keka.length / 2;
-        byte[] ke = Arrays.copyOfRange(keka, 0, halfLength);
-        byte[] ka = Arrays.copyOfRange(keka, halfLength, keka.length);
-        // c <- KMACXOF256(ke, “”, |m|, “PKE”) XOR m
-        byte[] c = Keccak.KMACXOF256(ke, "".getBytes(), (m.length * 8), "PKE");
-        c =  Keccak.xorBytes(c, m);
-        // t <- KMACXOF256(ka, m, 448, “SKA”)
-        byte[] t = Keccak.KMACXOF256(ka, m, 448, "PKA");
-        byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(Z.y.toByteArray(), c), t);
-        ZyByteArrayLength = Z.y.toByteArray().length;
-        System.out.println("Cryptogram:\n" + byteArrayToHexString(previousCryptogram));
-
-        //extracts Z'
-        byte[] ZBytes = Arrays.copyOfRange(previousCryptogram, 0, ZyByteArrayLength);
-        GoldilocksPoint ZPrime = new GoldilocksPoint(false, new BigInteger(ZBytes));
-        //extract t'
-        byte[] tPrime = Arrays.copyOfRange(previousCryptogram, previousCryptogram.length - (448/8), previousCryptogram.length);
-        //extract c', know that c' bytes = previousCryptogram.length - (Z'.length + t'.length)
-        byte[] cPrime = Arrays.copyOfRange(previousCryptogram, ZBytes.length, previousCryptogram.length - tPrime.length);
-        GoldilocksPoint Wprime = ZPrime.multByScalar(s); // W = s*Z
-        System.out.println("Wprime = W: " + Wprime.isEquals(W));
-        // (ke || ka)' <- KMACXOF256(W'x, “”, 2×448, “PK”)
-        byte[] kekaPrime = Keccak.KMACXOF256(Wprime.x.toByteArray(), "".getBytes(), 2*448, "PK");
-        byte[] kePrime = Arrays.copyOfRange(kekaPrime,0, kekaPrime.length/2);
-        byte[] kaPrime = Arrays.copyOfRange(kekaPrime,kekaPrime.length/2, kekaPrime.length);
-        // m' <- KMACXOF256(ke', “”, |c|, “PKE”) XOR c'
-        byte[] mPrime = Keccak.KMACXOF256(kePrime, "".getBytes(), (cPrime.length * 8), "PKE");
-        mPrime = Keccak.xorBytes(mPrime, cPrime);
-        // t’' <- KMACXOF256(ka', m', 448, “PKA”)
-        byte[] tPrimePrime = Keccak.KMACXOF256(kaPrime, mPrime, 448, "PKA");
-        // printing the successful decryption when t' = t
-        if (Arrays.equals(tPrime, tPrimePrime)) {
-            System.out.println("Decrypted output: " + Arrays.toString(mPrime));
-        } else {
-            System.out.println("Fail to decrypt!");
-        }
-
-
-
 
             case "gen" -> {
                 if (!handler.hasTag("pw")) {
@@ -286,7 +239,7 @@ public class Main {
     /**
      *  sign a  Byte Array And Write SignatureKey
      *  the pathfile ./signatureKey.txt
-     * @Author Tin Phu
+     * @author Tin Phu
      * @param m
      * @param pw
      * @throws IOException
@@ -332,8 +285,6 @@ public class Main {
         } catch (IOException e) {
             throw new RuntimeException("Fail to Write pub/pri key to files: " + e);
         }
-
-
     }
 
     /**
@@ -478,7 +429,6 @@ public class Main {
         return Keccak.concatByteArrays(Keccak.concatByteArrays(z, c), t);
     }
 
-
     /**
      * Encrypts a byte array under a Schnorr/DHIES given public key file,
      * stores the cryptogram in a file as z || c || t,
@@ -497,7 +447,7 @@ public class Main {
 
         // converting the public key bytes to a GoldilocksPoint
         byte[] publicKeyByte = readByteArrayFromFile("generatedPublicKey.txt");
-        GoldilocksPoint V = EllipticCurve.getPointFromPublicKey(publicKeyByte);
+        GoldilocksPoint V = EllipticCurve.getGoldPointFromPublicKey(publicKeyByte);
 
         GoldilocksPoint W = V.multByScalar(k); // W = k*V
         GoldilocksPoint Z = EllipticCurve.G.multByScalar(k); // Z = k*G
@@ -519,13 +469,11 @@ public class Main {
         ZyByteArrayLength = Z.y.toByteArray().length;
         // I save the cryptogram under a new file for testing purpose.
         // Let me know if this is not needed for our final work.
-        writeStringToFile(byteArrayToHexString(previousCryptogram), "src/encryptedFileUnderDHIES.txt");
+        writeStringToFile(byteArrayToHexString(previousCryptogram), "encryptedFileUnderDHIES.txt");
         System.out.println("Cryptogram:\n" + byteArrayToHexString(previousCryptogram));
 
         return previousCryptogram;
     }
-
-
 
     /**
      * Decrypts data from a file using the provided passphrase.
@@ -630,8 +578,9 @@ public class Main {
             if (Arrays.equals(t, tPrime)) {
                 decryptedByteArray = m;
                 writeStringToFile(byteArrayToHexString(decryptedByteArray), "decryptedFile.txt");
+                System.out.println("Decryted output from elliptic file: " + byteArrayToHexString(decryptedByteArray));
             } else {
-                System.out.println("Fail to decrypt!");
+                System.out.println("Fail to decrypt from elliptic file!");
             }
         } catch (IOException e) {
             System.err.println("Error reading file: " + e.getMessage());
@@ -639,7 +588,6 @@ public class Main {
 
         return decryptedByteArray;
     }
-
 
 
     /************************************************************
