@@ -173,9 +173,9 @@ public class EllipticCurve {
     }
 
 
-    public static GoldilocksPoint getPointFromPublicKey(byte[] bytesKey){
-        return new GoldilocksPoint(false, new BigInteger(bytesKey));
-    }
+//    public static GoldilocksPoint getPointFromPublicKey(byte[] bytesKey){
+//        return new GoldilocksPoint(false, new BigInteger(bytesKey));
+//    }
 
     /**
      * Generates a digital signature from the message and private key.

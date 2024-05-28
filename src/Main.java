@@ -53,7 +53,7 @@ public class Main {
     /**
      * Length of Z.y as a byte array.
      */
-    private static int ZyByteArrayLength;
+    private static int ZEncodedByteArrayLength;
 
 
     /**
@@ -451,6 +451,7 @@ public class Main {
 
         GoldilocksPoint W = V.multByScalar(k); // W = k*V
         GoldilocksPoint Z = EllipticCurve.G.multByScalar(k); // Z = k*G
+        byte[] hexXYofZ = Keccak.concatByteArrays(Keccak.encode_string(Z.x.toByteArray()), Keccak.encode_string(Z.y.toByteArray()));
 
         // (ke || ka) <- KMACXOF256(Wx, “”, 2×448, “PK”)
         byte[] keka = Keccak.KMACXOF256(W.x.toByteArray(), "".getBytes(), 2*448, "PK");
@@ -465,8 +466,8 @@ public class Main {
         // t <- KMACXOF256(ka, m, 448, “SKA”)
         byte[] t = Keccak.KMACXOF256(ka, byteArray, 448, "PKA");
 
-        byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(Z.y.toByteArray(), c), t);
-        ZyByteArrayLength = Z.y.toByteArray().length;
+        byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(hexXYofZ, c), t);
+        ZEncodedByteArrayLength = hexXYofZ.length;
         // I save the cryptogram under a new file for testing purpose.
         // Let me know if this is not needed for our final work.
         writeStringToFile(byteArrayToHexString(previousCryptogram), "encryptedFileUnderDHIES.txt");
@@ -551,8 +552,8 @@ public class Main {
             BigInteger s = new BigInteger(privateKeyByteArray);
 
             //extracts Z
-            byte[] ZBytes = Arrays.copyOfRange(inputByteArray, 0, ZyByteArrayLength);
-            GoldilocksPoint Z = new GoldilocksPoint(false, new BigInteger(ZBytes));
+            byte[] ZBytes = Arrays.copyOfRange(inputByteArray, 0, ZEncodedByteArrayLength);
+            GoldilocksPoint Z = EllipticCurve.getGoldPointFromPublicKey(ZBytes);
 
             //extract t
             byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - (448/8), inputByteArray.length);
