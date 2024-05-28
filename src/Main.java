@@ -6,6 +6,7 @@ import java.io.*;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
@@ -53,7 +54,7 @@ public class Main {
     /**
      * Length of Z.y as a byte array.
      */
-    private static int ZEncodedByteArrayLength;
+   // private static int ZEncodedByteArrayLength;
 
 
     /**
@@ -64,6 +65,15 @@ public class Main {
      * @throws IOException If an input file can't be read.
      */
     public static void main(String[] args) throws IOException {
+
+//        String m = "Phuhutun123123";
+//        String currentDir = System.getProperty("user.dir");
+//        String pubKeyFilePath = currentDir + File.separator + "encryptedFileUnderDHIES.txt";
+//
+//        encryptByteArrayUnderDHIES(m.getBytes(), currentDir + File.separator + "src" + File.separator + "generatedPublicKey.txt" );
+//        decryptFromEllipticFile("phuhuutin",pubKeyFilePath);
+
+
 
         if (args.length < 1) {
             System.out.println("Usage: java Main <command>");
@@ -137,6 +147,57 @@ public class Main {
                 }
             }
 
+            case "enDHIES" -> {
+
+                    //default file path ./toBeEncrypted.txt
+                    byte[] m;
+                    if (handler.hasTag("mFile") && handler.getValue("mFile").isEmpty()) {
+                        String currentDir = System.getProperty("user.dir");
+                        String filePath = currentDir + File.separator + "toBeEncrypted.txt";
+                        System.out.println("Readding data from: " + filePath);
+                        m = readStringFromFile(filePath).getBytes();
+                    }else if(handler.hasTag("mFile")){
+                        m = readStringFromFile(handler.getValue("mFile")).getBytes();
+                    } else if(handler.hasTag("enText")){
+                        m = handler.getValue("enText").getBytes();
+                    }else{
+                        System.out.println("Missing -mFile or -enText");
+                        break;
+                    }
+
+                    String currentDir = System.getProperty("user.dir");
+                    //default pubKeyFilePath
+                    String pubKeyFilePath = currentDir + File.separator + "generatedPublicKey.txt";
+
+                    if(handler.hasTag("pubFile") && !handler.getValue("pubFile").isEmpty() ){
+                        pubKeyFilePath = handler.getValue("pubFile");
+                        System.out.println("Get Public key from " +  handler.getValue("pubFile"));
+                    }else {
+                        System.out.println("Get Public key from ./" +  "generatedPublicKey.txt");
+
+                    }
+                    encryptByteArrayUnderDHIES(m,pubKeyFilePath);
+
+            }
+
+            case "deDHIES" -> {
+                if (!handler.hasTag("pw")) {
+                    System.out.println("Missing -pw");
+                } else{
+                    String currentDir = System.getProperty("user.dir");
+                    //default file Path
+                    String enFile =  currentDir + File.separator + "encryptedFileUnderDHIES.txt";
+                    if(handler.hasTag("file") && !handler.getValue("file").isEmpty()){
+                        enFile = handler.getValue("file");
+                    }
+
+                    decryptFromEllipticFile(handler.getValue("pw"),enFile);
+
+                }
+            }
+
+
+
             case "gen" -> {
                 if (!handler.hasTag("pw")) {
                     System.out.println("Missing -pw");
@@ -157,7 +218,6 @@ public class Main {
                         String pw = handler.getValue("pw");
                         signByteArrayAndWriteSignatureKey(m, pw);
                     } else {
-                        System.out.println("Readding from: " + handler.getValue("file"));
                         String filePath = handler.getValue("file");
                         System.out.println("Readding from: " + filePath);
                         byte[] m = readByteArrayFromFile(filePath);
@@ -167,10 +227,10 @@ public class Main {
                 } else {
                     if (!handler.hasTag("pw")) {
                         System.out.println("Missing -pw");
-                    } else if (!handler.hasTag("code")) {
-                        System.out.println("Missing -code");
+                    } else if (!handler.hasTag("text")) {
+                        System.out.println("Missing -text");
                     } else {
-                        byte[] m = readByteArrayFromString(handler.getValue("code"));
+                        byte[] m = handler.getValue("text").getBytes();
                         String pw = handler.getValue("pw");
                         signByteArrayAndWriteSignatureKey(m, pw);
                     }
@@ -185,8 +245,8 @@ public class Main {
                 //geting a given data
                 byte[] m = {};
                 //Bonus: from user input
-                if(handler.hasTag("mCode")){
-                    m = readByteArrayFromString(handler.getValue("mCode"));
+                if(handler.hasTag("text")){
+                    m = handler.getValue("text").getBytes();
                     System.out.println("Reading data from user input ");
                 }else{
                     //From file path.
@@ -213,12 +273,12 @@ public class Main {
                         if(handler.getValue("pubKeyFile").isEmpty()){
                             String pubKeyFilePath = currentDir + File.separator + "generatedPublicKey.txt";
                             byteArrayPublicKey = readByteArrayFromFile(pubKeyFilePath);
-                            System.out.println("Reading public key from" + pubKeyFilePath);
+                            System.out.println("Reading public key from " + pubKeyFilePath);
 
                         }else{
                             String pubKeyFilePath =  handler.getValue("pubKeyFile");
                             byteArrayPublicKey = readByteArrayFromFile(pubKeyFilePath);
-                            System.out.println("Reading public key from" + pubKeyFilePath);
+                            System.out.println("Reading public key from " + pubKeyFilePath);
 
                         }
                     }else{
@@ -228,7 +288,6 @@ public class Main {
                 }
                 //turn byteArrayPublicKey in to Goldilocks Point
                 GoldilocksPoint publicKeyPoint = EllipticCurve.getGoldPointFromPublicKey(byteArrayPublicKey);
-                System.out.println("===========================================");
                 System.out.println("Verified: " + EllipticCurve.signatureVerify(hz,m,publicKeyPoint));
             }
 
@@ -245,16 +304,11 @@ public class Main {
      * @throws IOException
      */
     private static void signByteArrayAndWriteSignatureKey(byte[] m, String pw) throws IOException {
-        //generate AsymmetricKey
-        //the main purpose is to write the current correct Public Key
-        generateAsymmetricKey(pw);
-
         //Sign
         byte[] conCatOfHZ = EllipticCurve.signatureGenerator(m, pw);
         //write signature to a ./signatureKey.txt file.
         writeStringToFile(byteArrayToHexString(conCatOfHZ), "signatureKey.txt");
-        System.out.println("===========================================");
-        System.out.println(byteArrayToHexString(conCatOfHZ));
+        System.out.println("Signature: " +byteArrayToHexString(conCatOfHZ));
 
     }
 
@@ -267,7 +321,7 @@ public class Main {
      * ▪ key pair: (s, V)
      * @param pw
      */
-    private static void generateAsymmetricKey(String pw){
+    public static void generateAsymmetricKey(String pw){
         byte[][] thePair = EllipticCurve.generateAsymmetricKey(pw);
         byte[] publicKey = thePair[1];
         byte[] privateKey = thePair[0];
@@ -280,6 +334,7 @@ public class Main {
             //Bonus points:
             //Encrypt the private key from that pair under the given password
             writeStringToFile(byteArrayToHexString(encryptByteArrayKey(pw,privateKey)), "generatedPrivateKey.txt");
+
             System.out.println("Wrote Hexadecimal of Encrypted Private Key to ./generatedPrivateKey.txt ");
 
         } catch (IOException e) {
@@ -439,20 +494,20 @@ public class Main {
      * @return the cryptogram in the form of as z || c || t.
      * @throws IOException if the file can't be written to
      */
-    private static byte[] encryptByteArrayUnderDHIES(byte[] byteArray) throws IOException {
+    private static byte[] encryptByteArrayUnderDHIES(byte[] byteArray, String filePath) throws IOException {
         byte[] k_temp = new byte[448/8];
         Main.random.nextBytes(k_temp); // k <- Random(448)
         BigInteger k = new BigInteger(k_temp);
         k = (BigInteger.valueOf(4)).multiply(k).mod(EllipticCurve.R); // k <- 4k mod r
 
         // converting the public key bytes to a GoldilocksPoint
-        byte[] publicKeyByte = readByteArrayFromFile("generatedPublicKey.txt");
+        byte[] publicKeyByte = readByteArrayFromFile(filePath);
         GoldilocksPoint V = EllipticCurve.getGoldPointFromPublicKey(publicKeyByte);
 
         GoldilocksPoint W = V.multByScalar(k); // W = k*V
         GoldilocksPoint Z = EllipticCurve.G.multByScalar(k); // Z = k*G
         byte[] hexXYofZ = Keccak.concatByteArrays(Keccak.encode_string(Z.x.toByteArray()), Keccak.encode_string(Z.y.toByteArray()));
-
+        //System.out.println("Z out : " + Arrays.toString(hexXYofZ));
         // (ke || ka) <- KMACXOF256(Wx, “”, 2×448, “PK”)
         byte[] keka = Keccak.KMACXOF256(W.x.toByteArray(), "".getBytes(), 2*448, "PK");
         int halfLength = keka.length / 2;
@@ -462,12 +517,12 @@ public class Main {
         // c <- KMACXOF256(ke, “”, |m|, “PKE”) XOR m
         byte[] c = Keccak.KMACXOF256(ke, "".getBytes(), (byteArray.length * 8), "PKE");
         c =  Keccak.xorBytes(c, byteArray);
-
+        //System.out.println("C out : " + Arrays.toString(c));
         // t <- KMACXOF256(ka, m, 448, “SKA”)
         byte[] t = Keccak.KMACXOF256(ka, byteArray, 448, "PKA");
 
-        byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(hexXYofZ, c), t);
-        ZEncodedByteArrayLength = hexXYofZ.length;
+        byte[] previousCryptogram =  Keccak.concatByteArrays(Keccak.concatByteArrays(Keccak.encode_string(hexXYofZ), Keccak.encode_string(c)), Keccak.encode_string(t));
+       // ZEncodedByteArrayLength = hexXYofZ.length;
         // I save the cryptogram under a new file for testing purpose.
         // Let me know if this is not needed for our final work.
         writeStringToFile(byteArrayToHexString(previousCryptogram), "encryptedFileUnderDHIES.txt");
@@ -485,7 +540,7 @@ public class Main {
      * @param filePath The path of the file containing the encrypted data.
      * @return The decrypted data as bytes.
      */
-    private static byte[] decryptFromFile(String pw, String filePath) {
+    public static byte[] decryptFromFile(String pw, String filePath) {
         byte[] decryptedByteArray = null;
 
         try {
@@ -519,7 +574,7 @@ public class Main {
             // printing the successful decryption when t' = t
             if (Arrays.equals(t, tPrime)) {
                 decryptedByteArray = m;
-                System.out.println("\nDecrypted output:\n" + new String(decryptedByteArray, StandardCharsets.UTF_8));
+                System.out.println("Decrypted Privated Key:\n" + byteArrayToHexString(decryptedByteArray));
             } else {
                 System.out.println("Fail to decrypt!");
             }
@@ -547,19 +602,21 @@ public class Main {
             // extracts the elliptic-encrypted data from the input file
             byte[] inputByteArray = readByteArrayFromFile(filePath);
 
-            // decrypts the encrypted private key file and extracts the private key
-            byte[] privateKeyByteArray = decryptFromFile(pw, "generatedPrivateKey.txt");
-            BigInteger s = new BigInteger(privateKeyByteArray);
+            BigInteger s = new BigInteger(Keccak.KMACXOF256(pw, "".getBytes(), 448, "SK"));
+            s = s.multiply(BigInteger.valueOf(4)).mod(EllipticCurve.R);
+
+            ArrayList<byte[]> ztcList = EllipticCurve.byteStrDecode(inputByteArray);
 
             //extracts Z
-            byte[] ZBytes = Arrays.copyOfRange(inputByteArray, 0, ZEncodedByteArrayLength);
+            byte[] ZBytes = ztcList.get(0);
+            //System.out.println("Z in : " + Arrays.toString(ZBytes));
             GoldilocksPoint Z = EllipticCurve.getGoldPointFromPublicKey(ZBytes);
 
             //extract t
-            byte[] t = Arrays.copyOfRange(inputByteArray, inputByteArray.length - (448/8), inputByteArray.length);
+            byte[] t = ztcList.get(2);
 
             //extract c, know that c bytes = inputByteArray.length - (Z.length + t.length)
-            byte[] c = Arrays.copyOfRange(inputByteArray, ZBytes.length, inputByteArray.length - t.length);
+            byte[] c = ztcList.get(1);
 
             GoldilocksPoint W = Z.multByScalar(s); // W = s*Z
 
@@ -578,8 +635,9 @@ public class Main {
             // printing the successful decryption when t' = t
             if (Arrays.equals(t, tPrime)) {
                 decryptedByteArray = m;
-                writeStringToFile(byteArrayToHexString(decryptedByteArray), "decryptedFile.txt");
-                System.out.println("Decryted output from elliptic file: " + byteArrayToHexString(decryptedByteArray));
+                writeStringToFile(new String(decryptedByteArray, StandardCharsets.UTF_8), "decryptedFile.txt");
+                System.out.println("Decryted output \n: " + new String(decryptedByteArray, StandardCharsets.UTF_8));
+                System.out.println("And write the result to ./decryptedFile.txt");
             } else {
                 System.out.println("Fail to decrypt from elliptic file!");
             }
@@ -602,7 +660,7 @@ public class Main {
      * @param bytes the given byte array
      * @return the hexadecimal string representation of the byte array
      */
-    private static String byteArrayToHexString(byte[] bytes) {
+    public static String byteArrayToHexString(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
         for (byte b : bytes) {
             sb.append(String.format("%02X ", b));
@@ -643,7 +701,7 @@ public class Main {
      * @return The byte array read from the file.
      * @throws IOException If an I/O error occurs while reading the file.
      */
-    private static byte[] readByteArrayFromFile(String filePath) throws IOException {
+    public static byte[] readByteArrayFromFile(String filePath) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line = reader.readLine();
             // handle empty string when read from the file

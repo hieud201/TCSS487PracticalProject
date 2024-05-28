@@ -136,7 +136,7 @@ public class EllipticCurve {
         privateKey = (BigInteger.valueOf(4)).multiply(privateKey).mod(R);
         result[0] = privateKey.toByteArray();
         GoldilocksPoint publicKey = G.multByScalar(privateKey);
-     //   System.out.println("public Point Out: " + publicKey.toString());
+      //  System.out.println("public Point Out: " + publicKey.toString());
         byte[] hexXYPublicKey = Keccak.concatByteArrays(Keccak.encode_string(publicKey.x.toByteArray()),
                 Keccak.encode_string(publicKey.y.toByteArray()));
         result[1] = hexXYPublicKey;
@@ -176,6 +176,23 @@ public class EllipticCurve {
 //    public static GoldilocksPoint getPointFromPublicKey(byte[] bytesKey){
 //        return new GoldilocksPoint(false, new BigInteger(bytesKey));
 //    }
+    public static ArrayList<byte[]> byteStrDecode(byte[] b) {
+        int ptr = 0;
+        var lst = new ArrayList<byte[]>();
+        while(ptr < b.length) { // points to the start of the current left_encode we're unpacking.
+            int len; // the length of the current left_encode(arr.length)
+            len = b[ptr] & 0xFF; // need to bitmask to avoid sign extension on the int typecast.
+
+            // length of the byte array
+            var arr_len = bytesToInt(Arrays.copyOfRange(b, ptr + 1, ptr + 1 + len)) / 8;
+
+            ptr += 1 + len;
+            var arr = Arrays.copyOfRange(b, ptr, ptr + arr_len);
+            ptr += arr_len;
+            lst.add(arr);
+        }
+        return lst;
+    }
 
     /**
      * Generates a digital signature from the message and private key.
